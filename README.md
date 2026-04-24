@@ -187,4 +187,4 @@ curl -i -X POST http://localhost:8082/api/v1/inventory/reserve \
 
 ## 문의
 
-질문이 있다면 이슈를 남기지 마시고, 채용 담당자에게 메일로 문의해 주세요.
+질문이 있다면 이슈를 남기지 마시고, 채용 담당자(info@catius.io)에게 메일로 문의해 주세요.
