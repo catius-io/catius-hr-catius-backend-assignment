@@ -1,0 +1,8 @@
+# order-service 테스트 루트
+#
+# 권장 구성 예:
+#   - controller/OrderControllerTest.java   (MockMvc)
+#   - service/OrderServiceTest.java         (단위 테스트)
+#   - service/OrderSagaIntegrationTest.java (통합 테스트 + @EmbeddedKafka)
+#
+# 이 .gitkeep 파일은 첫 테스트를 추가하면 삭제해도 됩니다.

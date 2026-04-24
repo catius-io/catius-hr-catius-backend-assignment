@@ -1,0 +1,11 @@
+// inventory-service 모듈 전용 설정.
+// 공통 의존성은 루트 build.gradle 의 subprojects { } 에 정의되어 있습니다.
+
+dependencies {
+    // 예) 이 서비스에서만 필요한 의존성이 생기면 여기에 추가
+}
+
+bootJar {
+    mainClass = 'com.catius.inventory.InventoryServiceApplication'
+    archiveFileName = 'inventory-service.jar'
+}

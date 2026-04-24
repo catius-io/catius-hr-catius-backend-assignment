@@ -1,0 +1,87 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: order-service
+
+  datasource:
+    url: jdbc:sqlite:./order-service.db
+    driver-class-name: org.sqlite.JDBC
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.community.dialect.SQLiteDialect
+        format_sql: true
+    show-sql: false
+    open-in-view: false
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
+    consumer:
+      group-id: order-service
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    listener:
+      # 로컬 전체 기동 시 외부 Kafka 가 없다면 `false` 로 두고, 테스트에서만 Embedded Kafka 로 검증하는 것도 한 방법입니다.
+      auto-startup: true
+
+# Inventory 서비스 Feign 클라이언트 베이스 URL
+inventory:
+  base-url: ${INVENTORY_BASE_URL:http://localhost:8082}
+
+# Resilience4j 기본 예시 — 근거를 가지고 수치를 조정하고, 조정 이유를 README 에 기재하세요.
+resilience4j:
+  circuitbreaker:
+    instances:
+      inventoryClient:
+        register-health-indicator: true
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+  timelimiter:
+    instances:
+      inventoryClient:
+        timeout-duration: 2s
+  retry:
+    instances:
+      inventoryClient:
+        max-attempts: 3
+        wait-duration: 500ms
+        retry-exceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+
+# Kafka 토픽 — 지원자가 정한 네이밍 규칙으로 조정
+catius:
+  kafka:
+    topics:
+      order-confirmed: order.order-confirmed.v1
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics,circuitbreakers
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    org.hibernate.SQL: INFO
+    org.springframework.kafka: INFO
+    io.github.resilience4j: INFO

@@ -1,0 +1,11 @@
+# domain 패키지
+#
+# 엔티티·값 객체·도메인 이벤트 정의.
+#
+# 예시:
+# - Order 엔티티 (id, items, status, totalPrice ...)
+# - OrderStatus enum (PENDING, CONFIRMED, CANCELED ...)
+# - OrderConfirmedEvent (Kafka 발행용 페이로드)
+# - 도메인 예외 (OrderNotFoundException 등)
+#
+# 이 .gitkeep 파일은 구현을 시작하면 삭제해도 됩니다.

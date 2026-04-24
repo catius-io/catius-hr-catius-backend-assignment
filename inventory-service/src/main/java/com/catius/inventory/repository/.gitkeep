@@ -1,0 +1,6 @@
+# repository 패키지
+#
+# Spring Data JPA 리포지토리 인터페이스를 이 패키지에 작성합니다.
+# 예) InventoryRepository extends JpaRepository<Inventory, Long>
+#
+# 이 .gitkeep 파일은 구현을 시작하면 삭제해도 됩니다.

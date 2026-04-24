@@ -1,0 +1,4 @@
+rootProject.name = 'catius-backend-assignment'
+
+include 'order-service'
+include 'inventory-service'

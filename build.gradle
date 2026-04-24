@@ -1,0 +1,74 @@
+plugins {
+    id 'org.springframework.boot' version '3.3.4' apply false
+    id 'io.spring.dependency-management' version '1.1.6' apply false
+}
+
+allprojects {
+    group = 'com.catius'
+    version = '0.0.1-SNAPSHOT'
+
+    repositories {
+        mavenCentral()
+    }
+}
+
+subprojects {
+    apply plugin: 'java'
+    apply plugin: 'org.springframework.boot'
+    apply plugin: 'io.spring.dependency-management'
+
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(21)
+        }
+    }
+
+    ext {
+        set('springCloudVersion', '2023.0.3')
+    }
+
+    dependencies {
+        // --- web / actuator / validation ---
+        implementation 'org.springframework.boot:spring-boot-starter-web'
+        implementation 'org.springframework.boot:spring-boot-starter-actuator'
+        implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+        // --- persistence: Spring Data JPA + SQLite + community dialects ---
+        implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+        implementation 'org.xerial:sqlite-jdbc:3.46.1.0'
+        implementation 'org.hibernate.orm:hibernate-community-dialects'
+
+        // --- service-to-service: OpenFeign + Resilience4j circuit breaker ---
+        // resilience4j-spring-boot3 는 application.yml 의 `resilience4j.*` 키를 그대로 바인딩합니다.
+        // 필요 시 spring-cloud-starter-circuitbreaker-resilience4j 로 전환 가능.
+        implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
+        implementation 'io.github.resilience4j:resilience4j-spring-boot3'
+        implementation 'io.github.resilience4j:resilience4j-feign'
+
+        // --- messaging: Kafka ---
+        implementation 'org.springframework.kafka:spring-kafka'
+
+        // --- observability ---
+        implementation 'io.micrometer:micrometer-registry-prometheus'
+
+        // --- dev convenience ---
+        compileOnly 'org.projectlombok:lombok'
+        annotationProcessor 'org.projectlombok:lombok'
+
+        // --- test ---
+        testImplementation 'org.springframework.boot:spring-boot-starter-test'
+        testImplementation 'org.springframework.kafka:spring-kafka-test'
+        testCompileOnly 'org.projectlombok:lombok'
+        testAnnotationProcessor 'org.projectlombok:lombok'
+    }
+
+    dependencyManagement {
+        imports {
+            mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+        }
+    }
+
+    tasks.named('test') {
+        useJUnitPlatform()
+    }
+}

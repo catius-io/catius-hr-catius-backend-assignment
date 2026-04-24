@@ -1,0 +1,14 @@
+# controller 패키지
+#
+# REST 엔드포인트를 이 패키지에 작성합니다.
+# 예) InventoryController
+#   - POST /api/v1/inventory/reserve — 재고 차감
+#   - POST /api/v1/inventory/release — 재고 복원 (보상)
+#   - GET  /api/v1/inventory/{productId} — 재고 조회
+#
+# 책임:
+# - HTTP 요청/응답 DTO 정의
+# - 요청 유효성 검증
+# - service 계층 호출, 도메인 예외 → HTTP 상태코드 매핑
+#
+# 이 .gitkeep 파일은 구현을 시작하면 삭제해도 됩니다.

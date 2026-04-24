@@ -1,0 +1,8 @@
+# inventory-service 테스트 루트
+#
+# 권장 구성 예:
+#   - controller/InventoryControllerTest.java     (MockMvc)
+#   - service/InventoryServiceTest.java           (단위 테스트, 동시성 시나리오 포함)
+#   - service/InventoryConcurrencyIntegrationTest (재고 차감 동시성 검증)
+#
+# 이 .gitkeep 파일은 첫 테스트를 추가하면 삭제해도 됩니다.
