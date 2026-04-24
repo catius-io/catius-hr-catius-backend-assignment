@@ -18,7 +18,7 @@ catius-backend-assignment/
 │   └── src/
 │       ├── main/
 │       │   ├── java/com/catius/order/
-│       │   │   ├── controller/    ← REST 엔드포인트를 여기에
+│       │   │   ├── controller/    ← REST 엔드포인트 (스텁 제공, 지원자가 교체)
 │       │   │   ├── service/       ← 비즈니스 로직, Feign 호출, Saga 오케스트레이션, 이벤트 발행
 │       │   │   ├── domain/        ← 엔티티·값 객체·도메인 이벤트
 │       │   │   ├── repository/    ← Spring Data JPA 리포지토리
@@ -29,7 +29,7 @@ catius-backend-assignment/
 └── perf/               (k6 스크립트 위치)
 ```
 
-현재 네 개의 패키지는 **비어 있습니다.** 각 패키지의 책임을 따라 지원자가 직접 클래스를 생성해 구현합니다.
+`controller` 패키지에는 **200/201 을 돌려주는 최소 스텁**만 들어 있습니다(부하/스모크 테스트 baseline 용). `service`·`domain`·`repository` 패키지는 비어 있으니, 각 패키지의 책임을 따라 지원자가 직접 클래스를 생성해 구현합니다.
 
 ---
 
@@ -41,15 +41,29 @@ catius-backend-assignment/
 - **OpenFeign** + **Resilience4j**
 - **Spring for Apache Kafka** + **Embedded Kafka** (테스트)
 - **k6** (부하 테스트)
-- **Gradle 멀티 프로젝트**
+- **Gradle 멀티 프로젝트** (wrapper 8.10.2)
 
 ---
 
-## 실행
+## 사전 준비
 
-### 최초 1회: Gradle Wrapper 생성
+### JDK 21 설치
 
-이 스캐폴드에는 wrapper jar 파일이 포함되어 있지 않습니다. 저장소를 Fork 받은 뒤, 로컬에 설치된 Gradle(또는 IntelliJ의 내장 Gradle)을 이용해 wrapper를 한 번 생성해주세요.
+`macOS` 예시 (Temurin):
+
+```bash
+brew install --cask temurin@21
+/usr/libexec/java_home -v 21      # 설치된 경로 확인
+export JAVA_HOME="$(/usr/libexec/java_home -v 21)"
+```
+
+> 루트 `build.gradle` 이 `JavaLanguageVersion.of(21)` 을 지정하므로, 더 높은 JDK 로 실행해도 Gradle toolchain 이 21 을 찾아 씁니다. 단, 로컬에 **최소 JDK 21 이상** 은 필요합니다.
+
+### Gradle Wrapper
+
+본 저장소에는 `gradlew`, `gradlew.bat`, `gradle/wrapper/gradle-wrapper.jar` 가 **이미 커밋**되어 있습니다. Fork 후 별도 생성 없이 `./gradlew` 로 바로 실행할 수 있습니다.
+
+Wrapper 가 없거나 버전을 바꾸고 싶을 때만:
 
 ```bash
 # 로컬에 gradle 이 설치돼 있다면
@@ -58,14 +72,20 @@ gradle wrapper --gradle-version 8.10.2
 # 또는 IntelliJ 에서: Gradle 창 → "Reload All Gradle Projects" 후 wrapper 자동 생성
 ```
 
-생성된 `gradlew`, `gradlew.bat`, `gradle/wrapper/gradle-wrapper.jar` 는 **첫 커밋에 포함시켜 주세요.** 이후에는 `./gradlew` 로 바로 실행할 수 있습니다.
+---
+
+## 실행
 
 ### 전체 빌드·테스트
+
 ```bash
 ./gradlew build
 ```
 
+산출물: `order-service/build/libs/order-service.jar`, `inventory-service/build/libs/inventory-service.jar`.
+
 ### 개별 서비스 기동
+
 ```bash
 ./gradlew :order-service:bootRun
 ./gradlew :inventory-service:bootRun
@@ -74,31 +94,94 @@ gradle wrapper --gradle-version 8.10.2
 - order-service 기본 포트: **8081**
 - inventory-service 기본 포트: **8082**
 
-각 서비스는 SQLite 파일(`order-service.db`, `inventory-service.db`)을 현재 디렉터리에 생성합니다. `.gitignore`에 포함되어 있어 커밋되지 않습니다.
+각 서비스는 SQLite 파일(`order-service.db`, `inventory-service.db`)을 실행 디렉터리에 생성합니다. `.gitignore` 에 포함되어 있어 커밋되지 않습니다.
 
 ### Kafka
-- **테스트 환경**: `spring-kafka-test`의 `@EmbeddedKafka`를 활용해 외부 브로커 없이 동작
+
+- **테스트 환경**: `spring-kafka-test` 의 `@EmbeddedKafka` 를 활용해 외부 브로커 없이 동작
 - **로컬 전체 기동 시**: 지원자가 선택
-  - (권장) 테스트로만 검증하고, 로컬 `bootRun` 시 `spring.kafka.listener.auto-startup=false` 등으로 컨슈머 비활성화
-  - 필요 시 Embedded Kafka를 애플리케이션 시작 시 수동으로 부트스트랩하는 구성을 직접 추가
-  - 또는 로컬에서 간이 `docker-compose.yml`을 제작해 Kafka 브로커를 띄움 (제출물에 포함 가능)
+  - (권장) 테스트로만 검증하고, 로컬 `bootRun` 시 Kafka 리스너를 꺼서 부팅 안정화:
+
+    ```bash
+    ./gradlew :order-service:bootRun \
+      --args='--spring.kafka.listener.auto-startup=false'
+    ```
+
+  - 또는 로컬에서 간이 `docker-compose.yml` 을 제작해 Kafka 브로커를 띄움 (제출물에 포함 가능)
+  - Embedded Kafka 를 애플리케이션 시작 시 수동으로 부트스트랩하는 구성을 직접 추가하는 것도 가능
 
 ---
 
-## 구현해야 할 것
+## 제공되는 API 스텁
 
-전체 요구사항, 평가 기준, 제출 절차는 과제 안내서를 따릅니다. 이 README는 **스캐폴드 사용 안내**만 다룹니다.
+지원자는 아래 계약을 기본으로 시작해 로직을 채워 넣으면 됩니다. **현재 응답 값은 하드코딩된 더미**입니다.
 
-실제 과제 명세: `카티어스_백엔드_과제전형.md` (채용 공고 메일에 동봉)
+### order-service (`:8081`)
+
+| Method | Path | Status | 설명 |
+|---|---|---|---|
+| POST | `/api/v1/orders` | **201** | 주문 생성 (Saga 시작점) |
+| GET  | `/api/v1/orders/{id}` | **200** | 주문 조회 |
+
+### inventory-service (`:8082`)
+
+| Method | Path | Status | 설명 |
+|---|---|---|---|
+| GET  | `/api/v1/inventory/{productId}` | **200** | 재고 조회 |
+| POST | `/api/v1/inventory/reserve` | **200** | 재고 차감 |
+| POST | `/api/v1/inventory/release` | **200** | 재고 복원 (보상) |
+
+### 공통 (Spring Boot Actuator)
+
+| Path | 설명 |
+|---|---|
+| `/actuator/health` | 헬스 체크 (DB 포함) |
+| `/actuator/prometheus` | Micrometer → Prometheus 메트릭 |
+| `/actuator/circuitbreakers` | (order-service) Resilience4j 상태 |
+
+### 호출 예시
+
+```bash
+# 서버 기동 후
+curl -i http://localhost:8081/actuator/health
+curl -i http://localhost:8082/actuator/health
+
+# 주문 생성 (현재 스텁 → 201)
+curl -i -X POST http://localhost:8081/api/v1/orders \
+  -H 'Content-Type: application/json' \
+  -d '{"customerId":1,"items":[{"productId":1001,"quantity":2}]}'
+
+# 재고 차감 (현재 스텁 → 200)
+curl -i -X POST http://localhost:8082/api/v1/inventory/reserve \
+  -H 'Content-Type: application/json' \
+  -d '{"productId":1001,"quantity":2}'
+```
+
+---
+
+## 구현해야 할 것 (요약)
+
+전체 요구사항과 평가 기준은 과제 안내서(`카티어스_백엔드_과제전형.md`, 채용 공고 메일 동봉)를 따릅니다. 본 README 는 스캐폴드 사용 안내입니다.
+
+참고 체크리스트:
+
+- [ ] `controller` 스텁을 실제 `Service` 호출로 교체하고 **예외 → HTTP 매핑** 완성
+- [ ] `domain` 엔티티·값 객체·도메인 이벤트 정의
+- [ ] `repository` JPA 인터페이스 (+ 동시성 전략: 낙관/비관 락 중 하나 + 선택 근거)
+- [ ] order-service → inventory-service **Feign + Resilience4j** (서킷/타임아웃/재시도 수치 근거 문서화)
+- [ ] **Saga**: 재고 차감 → 주문 확정 → `order.order-confirmed.v1` 이벤트 발행, 실패 시 보상
+- [ ] 테스트: 컨트롤러 MockMvc, 서비스 단위, Saga 통합(`@EmbeddedKafka`), 동시성 시나리오
+- [ ] `perf/scenarios/` 에 **k6 시나리오** 1개 이상 (SLO threshold 포함)
+- [ ] README 에 **설계 결정 근거**(락 전략, CB 수치, 토픽 네이밍, 실패 모드) 기술
 
 ---
 
 ## 제출 흐름 (요약)
 
 1. 이 저장소를 **Fork**
-2. 본인 Fork에서 `feature/*` 브랜치로 작업, 기능 단위로 PR 생성
-3. 최종 PR(들)을 본인 Fork의 `main`으로 머지 요청 상태로 유지
-4. Fork URL + PR URL 목록 + 최종 커밋 SHA를 제출 메일로 회신
+2. 본인 Fork 에서 `feature/*` 브랜치로 작업, 기능 단위로 PR 생성
+3. 최종 PR(들)을 본인 Fork 의 `main` 으로 머지 요청 상태로 유지
+4. Fork URL + PR URL 목록 + 최종 커밋 SHA 를 제출 메일로 회신
 
 ---
 
