@@ -1,6 +1,6 @@
-package com.catius.inventory.repository
+package com.catius.inventory.infrastructure.persistence.jpa
 
-import com.catius.inventory.repository.entity.InventoryEntity
+import com.catius.inventory.infrastructure.persistence.entity.InventoryEntity
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested

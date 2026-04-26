@@ -1,7 +1,7 @@
-package com.catius.inventory.repository
+package com.catius.inventory.infrastructure.persistence.jpa
 
 import com.catius.inventory.domain.MovementType
-import com.catius.inventory.repository.entity.StockMovementEntity
+import com.catius.inventory.infrastructure.persistence.entity.StockMovementEntity
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.DisplayName

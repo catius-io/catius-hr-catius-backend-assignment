@@ -1,6 +1,6 @@
-package com.catius.inventory.repository
+package com.catius.inventory.infrastructure.persistence.jpa
 
-import com.catius.inventory.repository.entity.InventoryEntity
+import com.catius.inventory.infrastructure.persistence.entity.InventoryEntity
 import jakarta.persistence.LockModeType
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Lock

@@ -1,7 +1,7 @@
-package com.catius.inventory.mapper
+package com.catius.inventory.infrastructure.persistence.mapper
 
 import com.catius.inventory.domain.StockMovement
-import com.catius.inventory.repository.entity.StockMovementEntity
+import com.catius.inventory.infrastructure.persistence.entity.StockMovementEntity
 
 object StockMovementMapper {
 

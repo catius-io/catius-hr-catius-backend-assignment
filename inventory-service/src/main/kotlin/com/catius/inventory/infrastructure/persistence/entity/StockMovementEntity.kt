@@ -1,4 +1,4 @@
-package com.catius.inventory.repository.entity
+package com.catius.inventory.infrastructure.persistence.entity
 
 import com.catius.inventory.domain.MovementType
 import jakarta.persistence.Column
