@@ -1,6 +1,5 @@
 package com.catius.order.domain;
 
-import com.catius.order.domain.enums.OrderStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

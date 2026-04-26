@@ -1,7 +1,7 @@
 package com.catius.order.controller.dto.response;
 
 import com.catius.order.domain.Order;
-import com.catius.order.domain.enums.OrderStatus;
+import com.catius.order.domain.OrderStatus;
 
 import java.time.LocalDateTime;
 
