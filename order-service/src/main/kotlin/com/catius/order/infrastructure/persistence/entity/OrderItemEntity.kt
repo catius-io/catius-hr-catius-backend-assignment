@@ -1,4 +1,4 @@
-package com.catius.order.repository.entity
+package com.catius.order.infrastructure.persistence.entity
 
 import jakarta.persistence.Column
 import jakarta.persistence.Entity

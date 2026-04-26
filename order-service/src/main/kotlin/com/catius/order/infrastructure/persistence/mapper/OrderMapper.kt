@@ -1,9 +1,9 @@
-package com.catius.order.mapper
+package com.catius.order.infrastructure.persistence.mapper
 
 import com.catius.order.domain.Order
 import com.catius.order.domain.OrderItem
-import com.catius.order.repository.entity.OrderEntity
-import com.catius.order.repository.entity.OrderItemEntity
+import com.catius.order.infrastructure.persistence.entity.OrderEntity
+import com.catius.order.infrastructure.persistence.entity.OrderItemEntity
 
 object OrderMapper {
 

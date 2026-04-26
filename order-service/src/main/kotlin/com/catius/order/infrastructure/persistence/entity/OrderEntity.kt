@@ -1,4 +1,4 @@
-package com.catius.order.repository.entity
+package com.catius.order.infrastructure.persistence.entity
 
 import com.catius.order.domain.OrderStatus
 import jakarta.persistence.CascadeType

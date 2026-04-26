@@ -1,8 +1,8 @@
-package com.catius.order.repository
+package com.catius.order.infrastructure.persistence.jpa
 
 import com.catius.order.domain.OrderStatus
-import com.catius.order.repository.entity.OrderEntity
-import com.catius.order.repository.entity.OrderItemEntity
+import com.catius.order.infrastructure.persistence.entity.OrderEntity
+import com.catius.order.infrastructure.persistence.entity.OrderItemEntity
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -100,7 +100,6 @@ class OrderJpaRepositoryTest @Autowired constructor(
             val refetched = repository.findById(saved.id!!).orElseThrow()
             assertThat(refetched.status).isEqualTo(OrderStatus.CONFIRMED)
             assertThat(refetched.updatedAt).isEqualTo(later)
-            // 변경하지 않은 필드는 유지
             assertThat(refetched.customerId).isEqualTo(100L)
             assertThat(refetched.createdAt).isEqualTo(now)
             assertThat(refetched.items).hasSize(1)
