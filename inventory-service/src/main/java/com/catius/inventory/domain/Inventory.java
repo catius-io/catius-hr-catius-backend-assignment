@@ -32,4 +32,18 @@ public class Inventory {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
+    public void deduct(int quantity) {
+        if (this.quantity < quantity) {
+            throw new IllegalStateException(
+                    "재고 부족: productId=" + productId + ", 현재=" + this.quantity + ", 요청=" + quantity
+            );
+        }
+        this.quantity -= quantity;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void restore(int quantity) {
+        this.quantity += quantity;
+        this.updatedAt = LocalDateTime.now();
+    }
 }
