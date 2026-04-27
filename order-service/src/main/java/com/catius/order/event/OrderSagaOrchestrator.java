@@ -1,9 +1,8 @@
 package com.catius.order.event;
 
-import com.catius.order.client.InventoryClient;
+import com.catius.order.client.InventoryClientFacade;
 import com.catius.order.client.dto.request.InventoryRequest;
 import com.catius.order.domain.Order;
-import com.catius.order.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -13,20 +12,22 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class OrderSagaOrchestrator {
 
-    private final InventoryClient inventoryClient;
+    private final InventoryClientFacade inventoryClientFacade;
     private final OrderEventPublisher orderEventPublisher;
 
     public void execute(Order order) {
+        boolean reserved = false;
 
         try {
             log.info("[재고 차감] orderId={} productId={}, qty={}",
                     order.getId(), order.getProductId(), order.getQuantity());
-            inventoryClient.reserve(new InventoryRequest(order.getProductId(), order.getQuantity()));
+            inventoryClientFacade.reserve(new InventoryRequest(order.getProductId(), order.getQuantity()));
+            reserved = true;
 
-            log.info("[주문 확인] orderId={} ", order.getId());
+            log.info("[주문 확인] orderId={}", order.getId());
             order.confirm();
 
-            log.info("[주문 이벤트 발행] orderId={} ", order.getId());
+            log.info("[주문 이벤트 발행] orderId={}", order.getId());
             orderEventPublisher.publishOrderConfirmed(new OrderConfirmedEvent(
                     order.getId(),
                     order.getProductId(),
@@ -35,15 +36,21 @@ public class OrderSagaOrchestrator {
                     System.currentTimeMillis()
             ));
 
-            log.info("[주문 이벤트 성공] orderId={} ", order.getId());
+            log.info("[주문 이벤트 성공] orderId={}", order.getId());
 
         } catch (Exception e) {
+            log.warn("[주문 실패] orderId={} cause={}", order.getId(), e.getMessage());
             order.cancel();
-            inventoryClient.release(new InventoryRequest(order.getProductId(), order.getQuantity()));
-            log.info("[주문 실패] orderId={} | cancelled", order.getId());
+
+            if (reserved) {
+                try {
+                    inventoryClientFacade.release(new InventoryRequest(order.getProductId(), order.getQuantity()));
+                    log.info("[재고 복구 완료] orderId={}", order.getId());
+                } catch (Exception releaseEx) {
+                    log.error("[재고 복구 실패] orderId={} — 수동 복구 필요, cause={}",
+                            order.getId(), releaseEx.getMessage());
+                }
+            }
         }
-
     }
-
-
 }
