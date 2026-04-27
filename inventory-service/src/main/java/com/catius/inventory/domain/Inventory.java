@@ -32,6 +32,16 @@ public class Inventory {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
+    public static Inventory create(String productId, String productName, int quantity) {
+        Inventory inventory = new Inventory();
+        inventory.productId = productId;
+        inventory.productName = productName;
+        inventory.quantity = quantity;
+        inventory.createdAt = LocalDateTime.now();
+        inventory.updatedAt = LocalDateTime.now();
+        return inventory;
+    }
+
     public void deduct(int quantity) {
         if (this.quantity < quantity) {
             throw new IllegalStateException(
