@@ -15,7 +15,6 @@ public class OrderSagaOrchestrator {
 
     private final InventoryClient inventoryClient;
     private final OrderEventPublisher orderEventPublisher;
-    private final OrderService        orderService;
 
     public void execute(Order order) {
 
