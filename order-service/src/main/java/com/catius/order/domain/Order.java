@@ -45,5 +45,14 @@ public class Order {
                 .build();
     }
 
+    public void confirm() {
+        this.status = OrderStatus.CONFIRMED;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void cancel() {
+        this.status = OrderStatus.CANCELLED;
+        this.updatedAt = LocalDateTime.now();
+    }
 
 }

@@ -3,6 +3,8 @@ package com.catius.order.service;
 import com.catius.order.controller.dto.request.OrderRequest;
 import com.catius.order.controller.dto.response.OrderResponse;
 import com.catius.order.domain.Order;
+import com.catius.order.event.OrderEventPublisher;
+import com.catius.order.event.OrderSagaOrchestrator;
 import com.catius.order.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -15,16 +17,13 @@ import org.springframework.web.server.ResponseStatusException;
 public class OrderService {
 
     private final OrderRepository orderRepository;
+    private final OrderSagaOrchestrator orderSagaOrchestrator;
 
     @Transactional
     public OrderResponse createOrder(OrderRequest request) {
         Order order = Order.create(request.productId(), request.quantity());
         orderRepository.save(order);
-
-        /**
-         * TODO : event 발생
-         */
-
+        orderSagaOrchestrator.execute(order);
         return OrderResponse.from(order);
     }
 
