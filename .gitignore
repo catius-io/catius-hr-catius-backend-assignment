@@ -1,2 +1,17 @@
 /.claude
 CLAUDE.md
+
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+
+# SQLite
+*.db
+
+# OS
+.DS_Store
