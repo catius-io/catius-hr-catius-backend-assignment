@@ -9,6 +9,8 @@ import org.springframework.data.repository.query.Param
 
 interface InventoryJpaRepository : JpaRepository<InventoryEntity, Long> {
 
+    fun findByProductId(productId: Long): InventoryEntity?
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select i from InventoryEntity i where i.productId = :productId")
     fun findByProductIdForUpdate(@Param("productId") productId: Long): InventoryEntity?
