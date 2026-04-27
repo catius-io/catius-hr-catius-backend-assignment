@@ -20,6 +20,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.*;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class OrderServiceTest {
@@ -36,11 +37,16 @@ class OrderServiceTest {
     @Test
     @DisplayName("주문 생성 - 성공")
     void createOrder_성공() {
-        given(orderRepository.save(any(Order.class))).willAnswer(inv -> inv.getArgument(0));
+        given(orderRepository.save(any(Order.class))).willAnswer(inv -> {
+            Order saved = inv.getArgument(0);
+            ReflectionTestUtils.setField(saved, "id", 1L);
+            return saved;
+        });
         willDoNothing().given(orderSagaOrchestrator).execute(any(Order.class));
 
         OrderResponse response = orderService.createOrder(new OrderRequest("PRODUCT-001", 2));
 
+        assertThat(response.id()).isEqualTo(1L);
         assertThat(response.productId()).isEqualTo("PRODUCT-001");
         assertThat(response.quantity()).isEqualTo(2);
         assertThat(response.status()).isEqualTo(OrderStatus.PENDING);
