@@ -19,7 +19,6 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final OrderSagaOrchestrator orderSagaOrchestrator;
 
-    @Transactional
     public OrderResponse createOrder(OrderRequest request) {
         Order order = orderRepository.save(Order.create(request.productId(), request.quantity()));
         orderSagaOrchestrator.execute(order);

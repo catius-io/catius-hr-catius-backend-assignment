@@ -5,6 +5,7 @@ import com.catius.order.client.dto.request.InventoryRequest;
 import com.catius.order.client.dto.response.InventoryResponse;
 import com.catius.order.domain.Order;
 import com.catius.order.domain.OrderStatus;
+import com.catius.order.repository.OrderRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -12,10 +13,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.CannotAcquireLockException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.*;
+import static org.mockito.Mockito.times;
 
 @ExtendWith(MockitoExtension.class)
 class OrderSagaOrchestratorTest {
@@ -25,6 +28,9 @@ class OrderSagaOrchestratorTest {
 
     @Mock
     private OrderEventPublisher orderEventPublisher;
+
+    @Mock
+    private OrderRepository orderRepository;
 
     @InjectMocks
     private OrderSagaOrchestrator orchestrator;
@@ -111,5 +117,38 @@ class OrderSagaOrchestratorTest {
         orchestrator.execute(order);
 
         assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+    }
+
+    @Test
+    @DisplayName("주문 상태 저장 - SQLITE_BUSY 발생 시 재시도 후 성공")
+    void execute_주문상태저장_lock_재시도_성공() {
+        given(inventoryClientFacade.reserve(any(InventoryRequest.class)))
+                .willReturn(new InventoryResponse("PRODUCT-001", "테스트 상품", 8));
+        given(orderRepository.save(any(Order.class)))
+                .willThrow(new CannotAcquireLockException("database is locked"))
+                .willReturn(order);
+
+        orchestrator.execute(order);
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
+        then(orderRepository).should(times(2)).save(any(Order.class));
+        then(orderEventPublisher).should().publishOrderConfirmed(any());
+    }
+
+    @Test
+    @DisplayName("보상 트랜잭션 - 주문 취소 저장 실패해도 재고 복구는 시도")
+    void execute_주문취소저장_lock_재고복구_시도() {
+        given(inventoryClientFacade.reserve(any(InventoryRequest.class)))
+                .willReturn(new InventoryResponse("PRODUCT-001", "테스트 상품", 8));
+        willThrow(new RuntimeException("Kafka 연결 실패"))
+                .given(orderEventPublisher).publishOrderConfirmed(any());
+        given(orderRepository.save(any(Order.class)))
+                .willReturn(order)
+                .willThrow(new CannotAcquireLockException("database is locked"));
+
+        orchestrator.execute(order);
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+        then(inventoryClientFacade).should().release(any());
     }
 }

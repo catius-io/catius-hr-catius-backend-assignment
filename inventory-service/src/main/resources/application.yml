@@ -6,8 +6,11 @@ spring:
     name: inventory-service
 
   datasource:
-    url: jdbc:sqlite:./inventory-service.db
+    url: jdbc:sqlite:./inventory-service.db?journal_mode=WAL&busy_timeout=10000
     driver-class-name: org.sqlite.JDBC
+    hikari:
+      maximum-pool-size: 1
+      connection-timeout: 10000
 
   jpa:
     hibernate:
