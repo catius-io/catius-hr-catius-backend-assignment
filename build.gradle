@@ -49,10 +49,9 @@ subprojects {
         implementation 'org.springframework.boot:spring-boot-starter-actuator'
         implementation 'org.springframework.boot:spring-boot-starter-validation'
 
-        // --- persistence: Spring Data JPA + SQLite + community dialects ---
+        // --- persistence: Spring Data JPA + H2 ---
         implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-        implementation 'org.xerial:sqlite-jdbc:3.46.1.0'
-        implementation 'org.hibernate.orm:hibernate-community-dialects'
+        runtimeOnly 'com.h2database:h2'
 
         // --- service-to-service: OpenFeign + Resilience4j circuit breaker ---
         // resilience4j-spring-boot3 는 application.yml 의 `resilience4j.*` 키를 그대로 바인딩합니다.
@@ -75,7 +74,6 @@ subprojects {
         testImplementation 'org.springframework.boot:spring-boot-starter-test'
         testImplementation 'org.springframework.kafka:spring-kafka-test'
         testImplementation 'org.springframework.cloud:spring-cloud-starter-contract-stub-runner'
-        testRuntimeOnly 'com.h2database:h2'
         testCompileOnly 'org.projectlombok:lombok'
         testAnnotationProcessor 'org.projectlombok:lombok'
     }
