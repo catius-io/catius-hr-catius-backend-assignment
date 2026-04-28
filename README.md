@@ -282,7 +282,7 @@ graph TD
 | 실패 시나리오 | 감지 방식 | 복구 / 대응 전략 | 데이터 정합성 결과 |
 | :--- | :--- | :--- | :--- |
 | **재고 부족** | Inventory Response `400 Bad` | 주문 상태를 `FAILED`로 즉각 전환 | 일관성 유지 (주문 취소 상태) |
-| **Inventory 호출 타임아웃** | `TimeoutException` (2초) | Saga 보상 트랜잭션 실행 (`release` API 호출 시도) 후 `FAILED` 전환 | 일관성 유지 (재고 롤백 시도) |
+| **Inventory 호출 타임아웃** | `TimeoutException` (500ms) | Saga 보상 트랜잭션 실행 (`release` API 호출 시도) 후 `FAILED` 전환 | 일관성 유지 (재고 롤백 시도) |
 | **Inventory 프로세스 다운** | `HttpServerErrorException` / 서킷 오픈 | 즉시 예외 전파 후 주문 실패 처리 | 시스템 보호 및 일관성 유지 |
 | **Kafka 발행 실패** | `KafkaException` | 주문 상태는 `CONFIRMED`로 남으나, 이벤트 발행 실패 로그 출력 | 최종 일관성 유실 (Outbox 도입 필요) |
 
