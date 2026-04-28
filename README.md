@@ -231,3 +231,74 @@ A. 억지로 모든 걸 개발하기 보다는 이게 더 나은 방식이라는
 ## 문의
 
 질문이 있다면 이슈를 남기지 마시고, 채용 담당자(info@catius.io)에게 메일로 문의해 주세요.
+
+---
+
+## 🛠️ 과제 구현 상세 및 설계 결정
+
+### 1. 시스템 구성도 (System Architecture)
+
+```mermaid
+graph TD
+    Client[k6 / Client] -->|POST /api/v1/orders| OrderService[order-service]
+    OrderService -->|GET/POST /api/v1/inventory| InventoryService[inventory-service]
+    OrderService -->|Publish order.order-confirmed.v1| EmbeddedKafka[Embedded Kafka]
+    OrderService -->|JPA| OrderDB[(Order DB - SQLite)]
+    InventoryService -->|JPA| InventoryDB[(Inventory DB - SQLite)]
+```
+
+> 💡 **Kafka 이벤트 수신 주체에 대한 참고 사항**
+> - 본 과제 범위에서는 `order.order-confirmed.v1` 이벤트를 발행(Produce)하는 것까지만 요구사항으로 정의되어 있습니다.
+> - 현재 시스템 내부에는 이를 수신(Consume)하는 비즈니스 로직이 구현되어 있지 않으며, 개념상 향후 확장될 다운스트림 서비스(배송, 알림, 정산 등)가 수신 주체가 됩니다. (테스트 코드에서는 검증용 Consumer가 이를 수신합니다.)
+
+### 2. 헥사고날 패키지 구조 및 레이어 책임
+두 서비스는 모두 헥사고날 아키텍처(Ports and Adapters) 구조를 지향하여 다음과 같이 패키지가 구성되어 있습니다.
+
+- **`domain`**: 핵심 도메인 모델(`Order`, `OrderItem`, `Inventory`, `StockMovement`)과 비즈니스 예외를 정의합니다. 또한, 외부 인프라 기술로부터 도메인을 보호하기 위해 `Inbound Port`(Use Cases)와 `Outbound Port` 인터페이스가 위치합니다.
+- **`service`**: `Inbound Port` UseCase 인터페이스의 구현체들이 위치하는 애플리케이션 서비스 레이어입니다. 트랜잭션 경계를 관리하고 도메인 엔티티와 아웃바운드 포트를 조율(Orchestration)하여 비즈니스 요구사항을 실행합니다.
+- **`controller`**: 외부 HTTP 요청을 접수하는 `Inbound Adapter` 레이어입니다. Spring MVC 컨트롤러가 위치하며, 요청 DTO를 도메인 커맨드로 매핑하고 UseCase를 호출하는 책임을 가집니다.
+- **`infrastructure`**: 데이터베이스(JPA), 메시지 브로커(Kafka), HTTP 클라이언트(Feign) 등 외부 시스템 및 기술 스택과 결합하는 `Outbound Adapter` 구현체들이 위치합니다.
+
+### 3. Saga 선택 근거: Orchestration vs Choreography
+본 시스템은 **Orchestration Saga** 방식을 채택하였습니다.
+- **근거**: 비즈니스 흐름의 제어권이 명확하게 주문 생성 프로세스에 종속되어 있기 때문에, `order-service`의 `OrderService`가 오케스트레이터 역할을 수행하여 전체 트랜잭션(재고 예약 -> 주문 확정) 흐름과 보상 트랜잭션(실패 시 재고 복원)을 조율하는 것이 비즈니스 가시성 및 디버깅에 훨씬 유리하다고 판단했습니다.
+
+### 4. 동시성 전략: Inventory 비관락, Order 락 미사용 + 근거
+- **Inventory (비관적 락 적용)**: 다수의 트랜잭션이 동시에 동일 상품의 재고(`InventoryEntity`)를 수정할 경우 발생할 수 있는 Race Condition 및 마이너스 재고 문제를 원천 차단하기 위해 `@Lock(LockModeType.PESSIMISTIC_WRITE)`을 적용하였습니다.
+- **Order (락 미사용)**: 주문은 생성 및 자신의 상태 전이만이 발생하며, 다수의 트랜잭션이 동일한 주문 ID의 레코드를 동시에 수정할 시나리오가 희박하여 별도의 락을 사용하지 않고 기본 트랜잭션으로 격리 수준을 유지합니다.
+
+### 5. Resilience4j 수치 근거
+- **`timeout-duration: 2s`**: `inventory-service` 지연이 발생할 경우 주문 처리 스레드가 무한정 대기하게 되어 전체 시스템 장애로 번질 수 있습니다. 이를 막기 위해 2초 타임아웃을 설정하여 빠른 실패(Fail Fast)를 유도합니다.
+- **`max-attempts: 3` / `wait-duration: 500ms`**: 간헐적인 네트워크 순시 단절이나 일시적인 GC Pause 등으로 인한 요청 누락에 복구 기회를 부여하기 위해 3회 재시도를 구성했습니다.
+- **`sliding-window-size: 10` / `minimum-number-of-calls: 5` / `failure-rate-threshold: 50%`**: 비교적 적은 샘플(최근 10개 호출 중 5개 이상 완료 시점)로도 에러율이 50%를 넘을 경우 즉각 Circuit을 OPEN 하여 백엔드 인프라 보호 및 장애 전파를 방지합니다.
+
+### 6. 토픽 네이밍 규칙
+- **규칙**: `<aggregate>.<event>.v<version>`
+- **적용 예시**: `order.order-confirmed.v1`
+- **근거**: 이벤트의 주권이 속한 도메인 Aggregate를 식별 가능하게 하고, 향후 이벤트 페이로드의 스키마 변경(Breaking Change)이 발생하더라도 구독자 호환성을 유지하기 위해 버전을 명시합니다.
+
+### 7. 실패 모드 매트릭스
+
+| 실패 시나리오 | 감지 방식 | 복구 / 대응 전략 | 데이터 정합성 결과 |
+| :--- | :--- | :--- | :--- |
+| **재고 부족** | Inventory Response `400 Bad` | 주문 상태를 `FAILED`로 즉각 전환 | 일관성 유지 (주문 취소 상태) |
+| **Inventory 호출 타임아웃** | `TimeoutException` (2초) | Saga 보상 트랜잭션 실행 (`release` API 호출 시도) 후 `FAILED` 전환 | 일관성 유지 (재고 롤백 시도) |
+| **Inventory 프로세스 다운** | `HttpServerErrorException` / 서킷 오픈 | 즉시 예외 전파 후 주문 실패 처리 | 시스템 보호 및 일관성 유지 |
+| **Kafka 발행 실패** | `KafkaException` | 주문 상태는 `CONFIRMED`로 남으나, 이벤트 발행 실패 로그 출력 | 최종 일관성 유실 (Outbox 도입 필요) |
+
+### 8. k6 성능 테스트 결과 및 해석
+- **1차 측정 결과 (Baseline)**:
+  - TPS: 약 32.86 orders/sec
+  - p(95) Response Time: 45ms
+  - 문제점: `status is CONFIRMED` 비동기 검증에서 1.45% (452건) 실패 발생.
+- **2차 측정 결과 (개선 후)**:
+  - TPS: 약 34.14 orders/sec
+  - p(95) Response Time: 47ms
+  - 개선점: `status is CONFIRMED` 검증 실패율 **0.00% (100% 성공)** 달성.
+- **해석**: 1차 측정에서 발생했던 주문 확정 상태 전이 실패 현상이 완벽히 해소되었습니다. 이는 재고 예약과 주문 생성 간의 트랜잭션 경계 분리 및 교착 상태(Deadlock) 예방 조치가 유효했음을 나타냅니다.
+
+### 9. 의도적 미구현 항목
+- **Transactional Outbox Pattern**: 주문 상태 변경과 Kafka 이벤트 발행의 원자적 일관성 보장.
+- **Flyway / DB Migration**: 스키마 버전 관리.
+- **SQLite Dialect 완전 검증**: 운영 환경(MySQL 등)으로의 이관을 위한 최적화.
+
