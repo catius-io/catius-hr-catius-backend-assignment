@@ -31,19 +31,45 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        max.block.ms: 2000          # 브로커 없을 때 메타데이터 패치 대기 상한 (기본 60s → 2s)
+        request.timeout.ms: 1500   # 브로커 응답 대기 상한
+        delivery.timeout.ms: 2000  # 전체 전달 타임아웃 (≥ request.timeout.ms)
     listener:
       # 로컬 전체 기동 시 외부 Kafka 가 없다면 `false` 로 두고, 테스트에서만 Embedded Kafka 로 검증하는 것도 한 방법입니다.
       auto-startup: true
+
+  # Feign 타임아웃 — timelimiter(2s)보다 짧게 설정해 CB가 먼저 감지하도록 함
+  cloud:
+    openfeign:
+      client:
+        config:
+          default:
+            connectTimeout: 500
+            readTimeout: 1500
 
 # Inventory 서비스 Feign 클라이언트 베이스 URL
 inventory:
   base-url: ${INVENTORY_BASE_URL:http://localhost:8082}
 
-# Resilience4j 기본 예시 — 근거를 가지고 수치를 조정하고, 조정 이유를 README 에 기재하세요.
+# Resilience4j 설정
+# - inventoryReserve: 재고 차감(비멱등). 재시도 없음 — 중복 차감 방지.
+#   CB: 10회 슬라이딩 윈도우, 실패율 50% 초과 시 오픈, 10s 후 half-open(3회 탐색).
+# - inventoryRelease: 재고 복구(보상). IOException/TimeoutException 한정 1회 재시도.
+#   CB: reserve와 동일 파라미터이나 독립 인스턴스로 분리해 reserve CB 상태에 영향받지 않음.
 resilience4j:
   circuitbreaker:
     instances:
-      inventoryClient:
+      inventoryReserve:
+        register-health-indicator: true
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+      inventoryRelease:
         register-health-indicator: true
         sliding-window-type: COUNT_BASED
         sliding-window-size: 10
@@ -54,12 +80,14 @@ resilience4j:
         automatic-transition-from-open-to-half-open-enabled: true
   timelimiter:
     instances:
-      inventoryClient:
+      inventoryReserve:
+        timeout-duration: 2s
+      inventoryRelease:
         timeout-duration: 2s
   retry:
     instances:
-      inventoryClient:
-        max-attempts: 3
+      inventoryRelease:
+        max-attempts: 2
         wait-duration: 500ms
         retry-exceptions:
           - java.io.IOException
@@ -69,7 +97,7 @@ resilience4j:
 catius:
   kafka:
     topics:
-      order-confirmed: order.order-confirmed.v1
+      order-confirmed: order-service.order.confirm
 
 management:
   endpoints:
