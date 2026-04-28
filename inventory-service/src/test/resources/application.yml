@@ -1,0 +1,28 @@
+server:
+  port: 0
+
+spring:
+  application:
+    name: inventory-service-test
+
+  datasource:
+    url: jdbc:sqlite:./inventory-service-test.db
+    driver-class-name: org.sqlite.JDBC
+    hikari:
+      # SQLite 는 파일 단위 단일 writer 락 모델이라 다중 커넥션 동시 쓰기 시 SQLITE_BUSY 가 발생.
+      # 안전한 동시 쓰기를 위해 커넥션을 1개로 직렬화 (SQLite 권장 패턴).
+      # @Lock(PESSIMISTIC_WRITE) 는 PostgreSQL/MySQL 로 교체 시 row-level 락으로 자연스럽게 동작.
+      maximum-pool-size: 1
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.community.dialect.SQLiteDialect
+    show-sql: false
+    open-in-view: false
+
+  kafka:
+    listener:
+      auto-startup: false
