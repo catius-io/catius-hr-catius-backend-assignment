@@ -1,0 +1,9 @@
+# local 프로파일: Kafka 리스너 비활성화
+spring:
+  kafka:
+    listener:
+      auto-startup: false
+
+logging:
+  level:
+    org.hibernate.SQL: DEBUG

@@ -12,7 +12,7 @@ class InventoryRepositoryAdapter(
 ) : InventoryRepository {
 
     override fun save(inventory: Inventory): Inventory {
-        val existing = inventoryJpaRepository.findByProductIdForUpdate(inventory.productId)
+        val existing = inventoryJpaRepository.findByProductId(inventory.productId)
         return if (existing != null) {
             InventoryMapper.applyTo(existing, inventory)
             InventoryMapper.toDomain(inventoryJpaRepository.save(existing))

@@ -26,7 +26,8 @@ class InventoryService(
     @Transactional
     override fun reserve(command: InventoryCommand.ReserveCommand): ReserveResult {
         val now = Instant.now(clock)
-        command.items.forEach { item ->
+        val sortedItems = command.items.sortedBy { it.productId }
+        sortedItems.forEach { item ->
             stockMovementApplier.apply(
                 orderId = command.orderId,
                 productId = item.productId,
@@ -47,7 +48,8 @@ class InventoryService(
     @Transactional
     override fun release(command: InventoryCommand.ReleaseCommand) {
         val now = Instant.now(clock)
-        command.items.forEach { item ->
+        val sortedItems = command.items.sortedBy { it.productId }
+        sortedItems.forEach { item ->
             stockMovementApplier.apply(
                 orderId = command.orderId,
                 productId = item.productId,
