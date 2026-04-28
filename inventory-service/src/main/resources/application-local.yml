@@ -1,0 +1,14 @@
+# local 프로파일: data.sql 시드 데이터 로드 + Kafka 리스너 비활성화
+spring:
+  sql:
+    init:
+      mode: always
+  jpa:
+    defer-datasource-initialization: true
+  kafka:
+    listener:
+      auto-startup: false
+
+logging:
+  level:
+    org.hibernate.SQL: DEBUG

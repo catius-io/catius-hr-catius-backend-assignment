@@ -6,15 +6,21 @@ spring:
     name: order-service
 
   datasource:
-    url: jdbc:sqlite:./order-service.db
-    driver-class-name: org.sqlite.JDBC
+    url: jdbc:h2:file:./order-service;DB_CLOSE_DELAY=-1;MODE=MySQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  h2:
+    console:
+      enabled: true
 
   jpa:
     hibernate:
       ddl-auto: update
     properties:
       hibernate:
-        dialect: org.hibernate.community.dialect.SQLiteDialect
+        dialect: org.hibernate.dialect.H2Dialect
         format_sql: true
     show-sql: false
     open-in-view: false
@@ -55,12 +61,12 @@ resilience4j:
   timelimiter:
     instances:
       inventoryClient:
-        timeout-duration: 2s
+        timeout-duration: 500ms
   retry:
     instances:
       inventoryClient:
-        max-attempts: 3
-        wait-duration: 500ms
+        max-attempts: 2
+        wait-duration: 200ms
         retry-exceptions:
           - java.io.IOException
           - java.util.concurrent.TimeoutException
