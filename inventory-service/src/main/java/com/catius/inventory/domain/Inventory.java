@@ -31,7 +31,7 @@ public class Inventory {
     @Column(nullable = false)
     private int stock;
 
-    public Inventory(Long productId, int stock) {
+    private Inventory(Long productId, int stock) {
         if (productId == null) {
             throw new IllegalArgumentException("productId must not be null");
         }
@@ -40,6 +40,10 @@ public class Inventory {
         }
         this.productId = productId;
         this.stock = stock;
+    }
+
+    public static Inventory create(Long productId, int initialStock) {
+        return new Inventory(productId, initialStock);
     }
 
     public void reserve(int quantity) {
