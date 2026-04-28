@@ -26,17 +26,28 @@ public class InventoryService {
 
     @Transactional
     public InventoryResponse reserve(InventoryRequest request) {
-        Inventory inventory = inventoryRepository.findByProductId(request.productId())
+        int updated = inventoryRepository.reserve(request.productId(), request.quantity());
+        if (updated == 0) {
+            Inventory inventory = inventoryRepository.findByProductId(request.productId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Stock not found: " + request.productId()));
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Insufficient stock: productId=" + request.productId() + ", current=" + inventory.getQuantity() + ", requested=" + request.quantity()
+            );
+        }
+        return inventoryRepository.findByProductId(request.productId())
+                .map(InventoryResponse::from)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Stock not found: " + request.productId()));
-        inventory.deduct(inventory.getQuantity());
-        return InventoryResponse.from(inventory);
     }
 
     @Transactional
     public InventoryResponse release(InventoryRequest request) {
-        Inventory inventory = inventoryRepository.findByProductId(request.productId())
+        int updated = inventoryRepository.release(request.productId(), request.quantity());
+        if (updated == 0) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Stock not found: " + request.productId());
+        }
+        return inventoryRepository.findByProductId(request.productId())
+                .map(InventoryResponse::from)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Stock not found: " + request.productId()));
-        inventory.restore(inventory.getQuantity());
-        return InventoryResponse.from(inventory);
     }
 }

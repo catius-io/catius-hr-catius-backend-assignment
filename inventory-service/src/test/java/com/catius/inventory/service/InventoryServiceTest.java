@@ -65,18 +65,22 @@ class InventoryServiceTest {
     @Test
     @DisplayName("재고 예약 - 성공")
     void reserve_성공() {
+        given(inventoryRepository.reserve("PRODUCT-001", 5))
+                .willReturn(1);
         given(inventoryRepository.findByProductId("PRODUCT-001"))
-                .willReturn(Optional.of(createInventory("PRODUCT-001", "테스트 상품", 10)));
+                .willReturn(Optional.of(createInventory("PRODUCT-001", "테스트 상품", 5)));
 
         InventoryResponse response = inventoryService.reserve(new InventoryRequest("PRODUCT-001", 5));
 
         assertThat(response.productId()).isEqualTo("PRODUCT-001");
-        assertThat(response.quantity()).isEqualTo(0); // inventory.getQuantity() 전량 차감
+        assertThat(response.quantity()).isEqualTo(5); // 10 - 5 = 5
     }
 
     @Test
     @DisplayName("재고 예약 - 없는 상품 → 404")
     void reserve_없는상품_404() {
+        given(inventoryRepository.reserve("PRODUCT-999", 1))
+                .willReturn(0);
         given(inventoryRepository.findByProductId("PRODUCT-999"))
                 .willReturn(Optional.empty());
 
@@ -91,20 +95,22 @@ class InventoryServiceTest {
     @Test
     @DisplayName("재고 복구 - 성공")
     void release_성공() {
+        given(inventoryRepository.release("PRODUCT-001", 3))
+                .willReturn(1);
         given(inventoryRepository.findByProductId("PRODUCT-001"))
-                .willReturn(Optional.of(createInventory("PRODUCT-001", "테스트 상품", 5)));
+                .willReturn(Optional.of(createInventory("PRODUCT-001", "테스트 상품", 8)));
 
         InventoryResponse response = inventoryService.release(new InventoryRequest("PRODUCT-001", 3));
 
         assertThat(response.productId()).isEqualTo("PRODUCT-001");
-        assertThat(response.quantity()).isEqualTo(10); // inventory.getQuantity()만큼 복구 → 5+5=10
+        assertThat(response.quantity()).isEqualTo(8); // 5 + 3 = 8
     }
 
     @Test
     @DisplayName("재고 복구 - 없는 상품 → 404")
     void release_없는상품_404() {
-        given(inventoryRepository.findByProductId("PRODUCT-999"))
-                .willReturn(Optional.empty());
+        given(inventoryRepository.release("PRODUCT-999", 1))
+                .willReturn(0);
 
         assertThatThrownBy(() -> inventoryService.release(new InventoryRequest("PRODUCT-999", 1)))
                 .isInstanceOf(ResponseStatusException.class)
