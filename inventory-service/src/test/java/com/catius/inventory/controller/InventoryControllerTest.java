@@ -2,6 +2,7 @@ package com.catius.inventory.controller;
 
 import com.catius.inventory.controller.dto.request.InventoryRequest;
 import com.catius.inventory.controller.dto.response.InventoryResponse;
+import com.catius.inventory.exception.StockNotFoundException;
 import com.catius.inventory.service.InventoryService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
@@ -9,10 +10,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.web.server.ResponseStatusException;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.*;
@@ -50,10 +49,13 @@ class InventoryControllerTest {
     @DisplayName("재고 조회 - 없는 상품 → 404")
     void getStock_404() throws Exception {
         given(inventoryService.findByProductId("PRODUCT-999"))
-                .willThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Stock not found"));
+                .willThrow(new StockNotFoundException("PRODUCT-999"));
 
         mockMvc.perform(get("/api/v1/inventory/PRODUCT-999"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("STOCK_NOT_FOUND"))
+                .andExpect(jsonPath("$.message").value("Stock not found: PRODUCT-999"))
+                .andExpect(jsonPath("$.path").value("/api/v1/inventory/PRODUCT-999"));
     }
 
     // ── POST /api/v1/inventory/reserve ───────────────────────────
@@ -76,12 +78,14 @@ class InventoryControllerTest {
     @DisplayName("재고 예약 - 없는 상품 → 404")
     void reserve_404() throws Exception {
         given(inventoryService.reserve(any()))
-                .willThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Stock not found"));
+                .willThrow(new StockNotFoundException("PRODUCT-999"));
 
         mockMvc.perform(post("/api/v1/inventory/reserve")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new InventoryRequest("PRODUCT-999", 1))))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("STOCK_NOT_FOUND"))
+                .andExpect(jsonPath("$.message").value("Stock not found: PRODUCT-999"));
     }
 
     // ── POST /api/v1/inventory/release ───────────────────────────
@@ -104,11 +108,13 @@ class InventoryControllerTest {
     @DisplayName("재고 복구 - 없는 상품 → 404")
     void release_404() throws Exception {
         given(inventoryService.release(any()))
-                .willThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Stock not found"));
+                .willThrow(new StockNotFoundException("PRODUCT-999"));
 
         mockMvc.perform(post("/api/v1/inventory/release")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new InventoryRequest("PRODUCT-999", 1))))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("STOCK_NOT_FOUND"))
+                .andExpect(jsonPath("$.message").value("Stock not found: PRODUCT-999"));
     }
 }

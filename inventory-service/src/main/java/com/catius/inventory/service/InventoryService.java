@@ -3,12 +3,12 @@ package com.catius.inventory.service;
 import com.catius.inventory.controller.dto.request.InventoryRequest;
 import com.catius.inventory.controller.dto.response.InventoryResponse;
 import com.catius.inventory.domain.Inventory;
+import com.catius.inventory.exception.InsufficientStockException;
+import com.catius.inventory.exception.StockNotFoundException;
 import com.catius.inventory.repository.InventoryRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 
 @Service
@@ -21,7 +21,7 @@ public class InventoryService {
     public InventoryResponse findByProductId(String productId) {
         return inventoryRepository.findByProductId(productId)
                 .map(InventoryResponse::from)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Stock not found: " + productId));
+                .orElseThrow(() -> new StockNotFoundException(productId));
     }
 
     @Transactional
@@ -29,25 +29,22 @@ public class InventoryService {
         int updated = inventoryRepository.reserve(request.productId(), request.quantity());
         if (updated == 0) {
             Inventory inventory = inventoryRepository.findByProductId(request.productId())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Stock not found: " + request.productId()));
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Insufficient stock: productId=" + request.productId() + ", current=" + inventory.getQuantity() + ", requested=" + request.quantity()
-            );
+                    .orElseThrow(() -> new StockNotFoundException(request.productId()));
+            throw new InsufficientStockException(request.productId(), inventory.getQuantity(), request.quantity());
         }
         return inventoryRepository.findByProductId(request.productId())
                 .map(InventoryResponse::from)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Stock not found: " + request.productId()));
+                .orElseThrow(() -> new StockNotFoundException(request.productId()));
     }
 
     @Transactional
     public InventoryResponse release(InventoryRequest request) {
         int updated = inventoryRepository.release(request.productId(), request.quantity());
         if (updated == 0) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Stock not found: " + request.productId());
+            throw new StockNotFoundException(request.productId());
         }
         return inventoryRepository.findByProductId(request.productId())
                 .map(InventoryResponse::from)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Stock not found: " + request.productId()));
+                .orElseThrow(() -> new StockNotFoundException(request.productId()));
     }
 }

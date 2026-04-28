@@ -5,6 +5,7 @@ import com.catius.order.controller.dto.response.OrderResponse;
 import com.catius.order.domain.Order;
 import com.catius.order.domain.OrderStatus;
 import com.catius.order.event.OrderSagaOrchestrator;
+import com.catius.order.exception.OrderNotFoundException;
 import com.catius.order.repository.OrderRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -12,8 +13,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Optional;
 
@@ -71,8 +70,7 @@ class OrderServiceTest {
         given(orderRepository.findById(999L)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> orderService.findById(999L))
-                .isInstanceOf(ResponseStatusException.class)
-                .satisfies(e -> assertThat(((ResponseStatusException) e).getStatusCode())
-                        .isEqualTo(HttpStatus.NOT_FOUND));
+                .isInstanceOf(OrderNotFoundException.class)
+                .hasMessage("Order not found: 999");
     }
 }

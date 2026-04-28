@@ -3,6 +3,7 @@ package com.catius.inventory.service;
 import com.catius.inventory.controller.dto.request.InventoryRequest;
 import com.catius.inventory.controller.dto.response.InventoryResponse;
 import com.catius.inventory.domain.Inventory;
+import com.catius.inventory.exception.StockNotFoundException;
 import com.catius.inventory.repository.InventoryRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -10,11 +11,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.HttpStatus;
-import org.springframework.test.util.ReflectionTestUtils;
-import org.springframework.web.server.ResponseStatusException;
 
-import java.time.LocalDateTime;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
@@ -55,9 +52,8 @@ class InventoryServiceTest {
                 .willReturn(Optional.empty());
 
         assertThatThrownBy(() -> inventoryService.findByProductId("PRODUCT-999"))
-                .isInstanceOf(ResponseStatusException.class)
-                .satisfies(e -> assertThat(((ResponseStatusException) e).getStatusCode())
-                        .isEqualTo(HttpStatus.NOT_FOUND));
+                .isInstanceOf(StockNotFoundException.class)
+                .hasMessage("Stock not found: PRODUCT-999");
     }
 
     // ── 재고 예약(차감) ───────────────────────────────────────────
@@ -85,9 +81,8 @@ class InventoryServiceTest {
                 .willReturn(Optional.empty());
 
         assertThatThrownBy(() -> inventoryService.reserve(new InventoryRequest("PRODUCT-999", 1)))
-                .isInstanceOf(ResponseStatusException.class)
-                .satisfies(e -> assertThat(((ResponseStatusException) e).getStatusCode())
-                        .isEqualTo(HttpStatus.NOT_FOUND));
+                .isInstanceOf(StockNotFoundException.class)
+                .hasMessage("Stock not found: PRODUCT-999");
     }
 
     // ── 재고 복구 ────────────────────────────────────────────────
@@ -113,8 +108,7 @@ class InventoryServiceTest {
                 .willReturn(0);
 
         assertThatThrownBy(() -> inventoryService.release(new InventoryRequest("PRODUCT-999", 1)))
-                .isInstanceOf(ResponseStatusException.class)
-                .satisfies(e -> assertThat(((ResponseStatusException) e).getStatusCode())
-                        .isEqualTo(HttpStatus.NOT_FOUND));
+                .isInstanceOf(StockNotFoundException.class)
+                .hasMessage("Stock not found: PRODUCT-999");
     }
 }

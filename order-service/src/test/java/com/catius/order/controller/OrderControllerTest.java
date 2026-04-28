@@ -3,6 +3,7 @@ package com.catius.order.controller;
 import com.catius.order.controller.dto.request.OrderRequest;
 import com.catius.order.controller.dto.response.OrderResponse;
 import com.catius.order.domain.OrderStatus;
+import com.catius.order.exception.OrderNotFoundException;
 import com.catius.order.service.OrderService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
@@ -10,10 +11,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 
@@ -65,9 +64,12 @@ class OrderControllerTest {
     @DisplayName("주문 조회 - 없는 주문 → 404")
     void getOrder_404() throws Exception {
         given(orderService.findById(999L))
-                .willThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+                .willThrow(new OrderNotFoundException(999L));
 
         mockMvc.perform(get("/api/v1/orders/999"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("ORDER_NOT_FOUND"))
+                .andExpect(jsonPath("$.message").value("Order not found: 999"))
+                .andExpect(jsonPath("$.path").value("/api/v1/orders/999"));
     }
 }
