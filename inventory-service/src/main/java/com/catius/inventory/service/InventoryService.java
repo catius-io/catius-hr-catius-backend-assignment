@@ -9,11 +9,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class InventoryService {
 
     private final InventoryRepository repository;
 
-    @Transactional(readOnly = true)
     public Inventory getInventory(Long productId) {
         return repository.findByProductId(productId)
                 .orElseThrow(() -> new ProductNotFoundException(productId));
