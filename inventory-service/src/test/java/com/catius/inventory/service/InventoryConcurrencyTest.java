@@ -6,7 +6,7 @@ import com.catius.inventory.repository.InventoryRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.RepeatedTest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
@@ -40,7 +40,7 @@ class InventoryConcurrencyTest {
         repository.deleteAll();
     }
 
-    @Test
+    @RepeatedTest(value = 5, name = "{displayName} [{currentRepetition}/{totalRepetitions}]")
     @DisplayName("재고 100 동시 100건 1개 차감 → 모두 성공 + stock 0")
     void reserve_동시_요청이_재고와_같으면_모두_성공한다() throws InterruptedException {
         repository.saveAndFlush(Inventory.create(PRODUCT_ID, 100));
@@ -57,7 +57,7 @@ class InventoryConcurrencyTest {
         assertThat(failure.get()).isZero();
     }
 
-    @Test
+    @RepeatedTest(value = 5, name = "{displayName} [{currentRepetition}/{totalRepetitions}]")
     @DisplayName("재고 10 동시 50건 1개 차감 → 10건 성공 + 40건 실패 + stock 0 (음수 X)")
     void reserve_재고초과_요청은_부족분만_실패하고_나머지는_성공한다() throws InterruptedException {
         repository.saveAndFlush(Inventory.create(PRODUCT_ID, 10));
