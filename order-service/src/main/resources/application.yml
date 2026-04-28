@@ -61,12 +61,12 @@ resilience4j:
   timelimiter:
     instances:
       inventoryClient:
-        timeout-duration: 2s
+        timeout-duration: 500ms
   retry:
     instances:
       inventoryClient:
-        max-attempts: 3
-        wait-duration: 500ms
+        max-attempts: 2
+        wait-duration: 200ms
         retry-exceptions:
           - java.io.IOException
           - java.util.concurrent.TimeoutException

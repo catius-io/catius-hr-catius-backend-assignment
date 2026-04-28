@@ -268,9 +268,9 @@ graph TD
 - **Order (락 미사용)**: 주문은 생성 및 자신의 상태 전이만이 발생하며, 다수의 트랜잭션이 동일한 주문 ID의 레코드를 동시에 수정할 시나리오가 희박하여 별도의 락을 사용하지 않고 기본 트랜잭션으로 격리 수준을 유지합니다.
 
 ### 5. Resilience4j 수치 근거
-- **`timeout-duration: 2s`**: `inventory-service` 지연이 발생할 경우 주문 처리 스레드가 무한정 대기하게 되어 전체 시스템 장애로 번질 수 있습니다. 이를 막기 위해 2초 타임아웃을 설정하여 빠른 실패(Fail Fast)를 유도합니다.
-- **`max-attempts: 3` / `wait-duration: 500ms`**: 간헐적인 네트워크 순시 단절이나 일시적인 GC Pause 등으로 인한 요청 누락에 복구 기회를 부여하기 위해 3회 재시도를 구성했습니다.
-- **`sliding-window-size: 10` / `minimum-number-of-calls: 5` / `failure-rate-threshold: 50%`**: 비교적 적은 샘플(최근 10개 호출 중 5개 이상 완료 시점)로도 에러율이 50%를 넘을 경우 즉각 Circuit을 OPEN 하여 백엔드 인프라 보호 및 장애 전파를 방지합니다.
+- **`timeout-duration: 500ms`**: `inventory-service` 지연이 발생할 경우, 대기 시간이 길어지면 주문 처리 스레드 풀이 순식간에 고갈(Thread Pool Exhaustion)되어 시스템 전체가 다운될 위험이 있습니다. 이를 방지하기 위해 타임아웃을 **500ms**로 타이트하게 설정하여 빠른 실패(Fail Fast)를 유도합니다.
+- **`max-attempts: 2` / `wait-duration: 200ms`**: 잦은 재시도는 오히려 장애 상황의 시스템 부하를 가중시키고 스레드 점유 시간을 늘립니다. 따라서 간헐적 순시 단절 복구를 위한 재시도는 **최대 2회**로 제한하고 대기 시간도 200ms로 단축했습니다.
+- **`sliding-window-size: 10` / `minimum-number-of-calls: 5` / `failure-rate-threshold: 50%`**: 비교적 적은 샘플(최근 10개 호출 중 5개 이상 완료 시점)로도 에러율이 50%를 넘을 경우 즉각 Circuit을 OPEN 하여 백엔드 인프라 보호 및 장애 전파를 차단합니다.
 
 ### 6. 토픽 네이밍 규칙
 - **규칙**: `<aggregate>.<event>.v<version>`
