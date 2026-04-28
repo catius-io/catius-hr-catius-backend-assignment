@@ -10,3 +10,8 @@ build/
 # Misc
 *.log
 .DS_Store
+
+# Databases
+*.db
+*.mv.db
+*.trace.db
