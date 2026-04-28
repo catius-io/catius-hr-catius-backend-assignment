@@ -57,37 +57,38 @@ inventory:
   base-url: ${INVENTORY_BASE_URL:http://localhost:8082}
 
 # Resilience4j 설정
-# - inventoryReserve: 재고 차감(비멱등). 재시도 없음 — 중복 차감 방지.
-#   CB: 10회 슬라이딩 윈도우, 실패율 50% 초과 시 오픈, 10s 후 half-open(3회 탐색).
-# - inventoryRelease: 재고 복구(보상). IOException/TimeoutException 한정 1회 재시도.
-#   CB: reserve와 동일 파라미터이나 독립 인스턴스로 분리해 reserve CB 상태에 영향받지 않음.
 resilience4j:
   circuitbreaker:
     instances:
       inventoryReserve:
         register-health-indicator: true
         sliding-window-type: COUNT_BASED
-        sliding-window-size: 10
-        minimum-number-of-calls: 5
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
         failure-rate-threshold: 50
-        wait-duration-in-open-state: 10s
-        permitted-number-of-calls-in-half-open-state: 3
+        slow-call-rate-threshold: 50
+        slow-call-duration-threshold: 2s
+        wait-duration-in-open-state: 15s
+        permitted-number-of-calls-in-half-open-state: 5
         automatic-transition-from-open-to-half-open-enabled: true
+        ignore-exceptions:
+          - feign.FeignException$NotFound
+          - feign.FeignException$Conflict
+
       inventoryRelease:
         register-health-indicator: true
         sliding-window-type: COUNT_BASED
         sliding-window-size: 10
         minimum-number-of-calls: 5
         failure-rate-threshold: 50
+        slow-call-rate-threshold: 50
+        slow-call-duration-threshold: 2s
         wait-duration-in-open-state: 10s
         permitted-number-of-calls-in-half-open-state: 3
         automatic-transition-from-open-to-half-open-enabled: true
-  timelimiter:
-    instances:
-      inventoryReserve:
-        timeout-duration: 2s
-      inventoryRelease:
-        timeout-duration: 2s
+        ignore-exceptions:
+          - feign.FeignException$NotFound
+
   retry:
     instances:
       inventoryRelease:
