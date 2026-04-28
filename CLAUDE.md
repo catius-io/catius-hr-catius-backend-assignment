@@ -6,6 +6,58 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Hiring assignment scaffold for a two-service order/inventory mini-MSA. Candidates fork this repo and implement the business logic; the scaffold ships only the Gradle multi-project layout, Spring Boot wiring, and empty package directories (controller/service/domain/repository are all `.gitkeep` placeholders). Treat all production code as something to be **added**, not refactored from existing implementations.
 
+## Assignment Context (from README.md)
+
+This is a **Catius backend hiring assignment**. Submission flow: fork → implement on a feature branch → open PRs against the candidate's own fork `main` → submit fork URL + PR URLs + final commit SHA by email.
+
+### Required Capabilities to Build
+
+The candidate must turn the empty scaffold into a working two-service system that demonstrates:
+
+1. **Order creation flow (Saga starting point)** — `POST /api/v1/orders` triggers: reserve inventory → confirm order → publish `order.order-confirmed.v1` Kafka event. On any failure after reservation, compensate by calling `POST /api/v1/inventory/release`.
+2. **Inter-service communication** — order-service calls inventory-service over OpenFeign, wrapped in Resilience4j (circuit breaker / time limiter / retry). Configuration values must be deliberately chosen and justified, not left at defaults.
+3. **Concurrency control on inventory** — inventory decrement is the contention point. Candidate picks optimistic vs. pessimistic locking and documents the rationale; concurrency tests must prove stock cannot go negative under parallel reservations.
+4. **Saga compensation** — partial-failure paths (reservation succeeded but confirmation/event publish failed) must trigger inventory release; behavior under concurrent failures must hold.
+5. **Tests** — controller (MockMvc), service unit tests, Saga integration tests using `@EmbeddedKafka`, and concurrency scenarios.
+6. **Performance** — at least one k6 scenario under `perf/scenarios/` with ramp-up/steady/ramp-down stages and explicit SLO thresholds (p95 latency, error rate) that fail the run when violated.
+7. **Design documentation** — README must explain *why* for: lock strategy, circuit-breaker numbers, topic naming, failure modes, Saga style choice.
+
+### Evaluation Rubric (total 100%)
+
+| Area | Weight | What Reviewers Look For |
+|---|---|---|
+| **Functional behavior** | 25% | End-to-end success and failure scenarios actually work |
+| **Inter-service design** | 20% | Feign + circuit breaker + timeout + retry values backed by reasoning |
+| **Saga compensation robustness** | 15% | Partial failures and concurrency scenarios handled correctly |
+| **Performance test realism & interpretation** | 15% | Scenario design, target metric justification, depth of result analysis |
+| **Code quality & tests** | 15% | Layer separation, naming, presence of unit + integration tests |
+| **Design documentation & tradeoffs** | 10% | README structure, justified design choices |
+
+**Penalty signals**: a single lump commit, no tests at all, no README, missing core requirements (circuit breaker / Saga), thin PR descriptions.
+
+### Fixed Constraints (DO NOT change)
+
+- **Stack**: Java 21 (or Kotlin 1.9+), Spring Boot 3.3.x, Spring Data JPA + SQLite, OpenFeign + Resilience4j, Spring for Apache Kafka + `@EmbeddedKafka` for tests, k6 for load tests, Gradle multi-project (wrapper 8.10.2).
+- **Kafka in tests**: Use `@EmbeddedKafka` — running Kafka via docker-compose is explicitly **discouraged**. If unavoidable, the candidate must document why.
+- **Database**: SQLite is intentional. Do not swap to H2/in-memory just because it would be easier — the file-based persistence and SQLite's single-writer file lock are part of the constraint set the design must reckon with.
+
+### FAQ Highlights (Strategic Hints from README)
+
+- *"Inventory looks too simple — should I add complexity?"* → **No.** Build the simplest implementation that satisfies the core requirements; spend remaining time on tests, docs, and performance interpretation.
+- *"Choreography vs. Orchestration Saga?"* → Either is acceptable. **The choice must be justified in the README.**
+- *"Are AI tools allowed?"* → Yes, but **the candidate must be able to explain every line in the follow-up interview**. Do not include code that cannot be defended verbally.
+- *"What if I run out of time?"* → Don't force-finish everything. Focus on the core, and **honestly list what was intentionally skipped** in a README section. Judgment is also evaluated.
+
+### Implementation Order Heuristic
+
+Because order-service depends on inventory-service (Feign calls) and the only real concurrency problem lives in inventory:
+1. inventory-service domain + JPA + lock + 3 REST endpoints + concurrency test
+2. order-service domain + Feign client + Resilience4j config
+3. order-service Saga logic + Kafka publisher
+4. `@EmbeddedKafka` integration tests + k6 scenario + README rationale sections
+
+Building inventory first means order can call a real, tested dependency instead of mocks that drift from the eventual contract.
+
 ## Common Commands
 
 ```bash
