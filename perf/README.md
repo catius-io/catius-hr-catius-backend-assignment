@@ -18,10 +18,30 @@ brew install k6
   - 목표 처리량(rps), 허용 실패율, **p95 응답 시간 SLO** 정의
   - `thresholds` 로 SLO 위반 시 테스트가 실패하도록 구성
 
-## 실행 예
+## 시나리오
+
+| 파일 | 목적 | VU | 시간 |
+|---|---|---|---|
+| `scenarios/create-order.js` | 주문 생성 부하 테스트 | 0→10→0 | 110s |
+
+## SLO 정의
+
+| 지표 | 임계값 | 설명 |
+|---|---|---|
+| `p(95)` 응답시간 | < 500ms | 95%의 요청이 0.5초 안에 응답 |
+| `p(99)` 응답시간 | < 1000ms | 99%의 요청이 1초 안에 응답 |
+| 에러율 | < 1% | 4xx/5xx 합산 |
+| Saga 정상 종료율 | > 90% | CONFIRMED 또는 보상 완료(CANCELLED) 상태로 종료된 주문 비율 |
+
+## 실행
 
 ```bash
+# 부하 테스트
 k6 run perf/scenarios/create-order.js
+
+# 서비스 URL 지정
+BASE_URL=http://localhost:8081 INV_URL=http://localhost:8082 k6 run perf/scenarios/create-order.js
+
 ```
 
 ## 제출 시 권장 사항
@@ -31,5 +51,5 @@ k6 run perf/scenarios/create-order.js
 
 ## 보너스
 
-- GitHub Actions 에 `k6 run` 을 붙여 **스모크 테스트**를 CI 에서 자동화하면 가점.
+- GitHub Actions 에 `k6 run` 을 붙여 성능 시나리오를 CI 에서 자동화하면 가점.
   예) `actions/checkout@v4` → `grafana/setup-k6-action@v1` → `grafana/run-k6-action@v1`
