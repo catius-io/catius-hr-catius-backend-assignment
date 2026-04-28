@@ -1,5 +1,6 @@
 package com.catius.order.controller;
 
+import com.catius.order.controller.dto.request.OrderItemRequest;
 import com.catius.order.controller.dto.request.OrderRequest;
 import com.catius.order.controller.dto.response.OrderResponse;
 import com.catius.order.domain.OrderStatus;
@@ -15,6 +16,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.*;
@@ -37,22 +39,24 @@ class OrderControllerTest {
     @DisplayName("주문 생성 - 201 Created")
     void createOrder_201() throws Exception {
         given(orderService.createOrder(any()))
-                .willReturn(new OrderResponse(1L, "PRODUCT-001", 2, OrderStatus.PENDING, LocalDateTime.now()));
+                .willReturn(List.of(new OrderResponse(1L, 1L, "PRODUCT-001", 2, OrderStatus.PENDING, LocalDateTime.now())));
+
+        OrderRequest request = new OrderRequest(1L, List.of(new OrderItemRequest("PRODUCT-001", 2)));
 
         mockMvc.perform(post("/api/v1/orders")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new OrderRequest("PRODUCT-001", 2))))
+                        .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.productId").value("PRODUCT-001"))
-                .andExpect(jsonPath("$.quantity").value(2))
-                .andExpect(jsonPath("$.status").value("PENDING"));
+                .andExpect(jsonPath("$[0].productId").value("PRODUCT-001"))
+                .andExpect(jsonPath("$[0].quantity").value(2))
+                .andExpect(jsonPath("$[0].status").value("PENDING"));
     }
 
     @Test
     @DisplayName("주문 조회 - 200 OK")
     void getOrder_200() throws Exception {
         given(orderService.findById(1L))
-                .willReturn(new OrderResponse(1L, "PRODUCT-001", 2, OrderStatus.CONFIRMED, LocalDateTime.now()));
+                .willReturn(new OrderResponse(1L, 1L, "PRODUCT-001", 2, OrderStatus.CONFIRMED, LocalDateTime.now()));
 
         mockMvc.perform(get("/api/v1/orders/1"))
                 .andExpect(status().isOk())

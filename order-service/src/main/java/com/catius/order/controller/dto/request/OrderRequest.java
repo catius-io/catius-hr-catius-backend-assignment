@@ -1,7 +1,9 @@
 package com.catius.order.controller.dto.request;
 
-public record OrderRequest (
-        String productId,
-        int quantity
-){
+import java.util.List;
+
+public record OrderRequest(
+        Long customerId,
+        List<OrderItemRequest> items
+) {
 }

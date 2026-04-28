@@ -12,7 +12,7 @@ class OrderTest {
 
     @BeforeEach
     void setUp() {
-        order = Order.create("PRODUCT-001", 3);
+        order = Order.create(1L , "PRODUCT-001", 3);
     }
 
     @Test

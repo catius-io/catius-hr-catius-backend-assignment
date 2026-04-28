@@ -39,7 +39,7 @@ class OrderSagaOrchestratorTest {
 
     @BeforeEach
     void setUp() {
-        order = Order.create("PRODUCT-001", 2);
+        order = Order.create(1L, "PRODUCT-001", 2);
     }
 
     // ── 정상 흐름 ─────────────────────────────────────────────────

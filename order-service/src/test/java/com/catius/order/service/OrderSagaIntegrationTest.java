@@ -64,7 +64,7 @@ class OrderSagaIntegrationTest {
         given(inventoryClientFacade.reserve(any(InventoryRequest.class)))
                 .willReturn(new InventoryResponse("PRODUCT-001", "테스트 상품", 8));
 
-        Order order = orderRepository.save(Order.create("PRODUCT-001", 2));
+        Order order = orderRepository.save(Order.create(1L, "PRODUCT-001", 2));
 
         try (Consumer<String, OrderConfirmedEvent> consumer = createConsumer()) {
             embeddedKafkaBroker.consumeFromAnEmbeddedTopic(consumer, TOPIC);

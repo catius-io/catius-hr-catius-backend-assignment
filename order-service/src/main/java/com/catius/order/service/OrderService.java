@@ -10,6 +10,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class OrderService {
@@ -17,10 +19,16 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final OrderSagaOrchestrator orderSagaOrchestrator;
 
-    public OrderResponse createOrder(OrderRequest request) {
-        Order order = orderRepository.save(Order.create(request.productId(), request.quantity()));
-        orderSagaOrchestrator.execute(order);
-        return OrderResponse.from(order);
+    public List<OrderResponse> createOrder(OrderRequest request) {
+        return request.items().stream()
+                .map(item -> {
+                    Order order = orderRepository.save(
+                            Order.create(request.customerId(), item.productId(), item.quantity())
+                    );
+                    orderSagaOrchestrator.execute(order);
+                    return OrderResponse.from(order);
+                })
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -28,6 +36,5 @@ public class OrderService {
         return orderRepository.findById(id)
                 .map(OrderResponse::from)
                 .orElseThrow(() -> new OrderNotFoundException(id));
-
     }
 }

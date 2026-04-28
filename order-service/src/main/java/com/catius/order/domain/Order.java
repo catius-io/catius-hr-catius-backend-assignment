@@ -21,6 +21,8 @@ public class Order {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    private Long customerId;
+
     private String productId;
 
     private int quantity;
@@ -35,8 +37,9 @@ public class Order {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
-    public static Order create(String productId, int quantity) {
+    public static Order create(Long customerId, String productId, int quantity) {
         return Order.builder()
+                .customerId(customerId)
                 .productId(productId)
                 .quantity(quantity)
                 .status(OrderStatus.PENDING)

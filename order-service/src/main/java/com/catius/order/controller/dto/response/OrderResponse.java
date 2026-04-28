@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 
 public record OrderResponse(
         Long id,
+        Long customerId,
         String productId,
         int quantity,
         OrderStatus status,
@@ -15,6 +16,7 @@ public record OrderResponse(
     public static OrderResponse from(Order order) {
         return new OrderResponse(
                 order.getId(),
+                order.getCustomerId(),
                 order.getProductId(),
                 order.getQuantity(),
                 order.getStatus(),
