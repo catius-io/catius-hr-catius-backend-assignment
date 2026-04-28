@@ -4,6 +4,9 @@ import com.catius.order.domain.OrderItem
 import com.catius.order.domain.port.InventoryClient
 import com.catius.order.domain.port.ReserveOutcome
 import feign.FeignException
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker
+import io.github.resilience4j.retry.annotation.Retry
+import io.github.resilience4j.timelimiter.annotation.TimeLimiter
 import org.springframework.stereotype.Component
 
 @Component
@@ -11,6 +14,8 @@ class InventoryClientAdapter(
     private val inventoryFeignClient: InventoryFeignClient,
 ) : InventoryClient {
 
+    @CircuitBreaker(name = "inventoryClient", fallbackMethod = "reserveFallback")
+    @Retry(name = "inventoryClient")
     override fun reserve(orderId: Long, items: List<OrderItem>): ReserveOutcome {
         return try {
             inventoryFeignClient.reserve(
@@ -21,13 +26,21 @@ class InventoryClientAdapter(
             )
             ReserveOutcome.Success
         } catch (e: FeignException.Conflict) {
-            // 409 Conflict: 재고 부족
-            // 실제 응답 바디에서 productId를 추출할 수도 있지만, 일단은 첫 번째 아이템 혹은 전체 실패로 간주
+            // 409 Conflict는 비즈니스 예외로 취급하여 직접 처리
             ReserveOutcome.InsufficientStock(items.first().productId)
-        } catch (e: Exception) {
-            // 그 외 (5xx, 타임아웃, CB 오픈 등)
-            ReserveOutcome.Unavailable
         }
+    }
+
+    /**
+     * Fallback for reserve: 타임아웃, 서킷 오픈, 5xx 등 발생 시 호출됨.
+     * Throwable 파라미터가 반드시 마지막에 있어야 함.
+     */
+    private fun reserveFallback(orderId: Long, items: List<OrderItem>, e: Throwable): ReserveOutcome {
+        if (e is FeignException.Conflict) {
+            return ReserveOutcome.InsufficientStock(items.first().productId)
+        }
+        // 그 외 모든 시스템 오류는 Unavailable 반환하여 Saga 보상 로직 유도
+        return ReserveOutcome.Unavailable
     }
 
     override fun release(orderId: Long, items: List<OrderItem>) {
@@ -39,7 +52,7 @@ class InventoryClientAdapter(
                 ),
             )
         } catch (e: Exception) {
-            // 보상 트랜잭션 실패 시 로깅 및 후속 조치 필요 (여기선 단순 무시 혹은 로깅)
+            // 보상 트랜잭션 실패 시 로깅 (실제 운영 환경에선 재시도 큐나 Dead Letter Queue 검토 필요)
         }
     }
 }

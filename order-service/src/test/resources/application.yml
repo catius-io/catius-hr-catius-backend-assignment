@@ -1,24 +1,30 @@
 spring:
-  datasource:
-    url: jdbc:h2:mem:order-service-test;DB_CLOSE_DELAY=-1;MODE=MySQL
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
-
-  jpa:
-    hibernate:
-      ddl-auto: create-drop
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.H2Dialect
-        format_sql: true
-    show-sql: false
-    open-in-view: false
-
+  main:
+    allow-bean-definition-overriding: true
   kafka:
-    listener:
-      auto-startup: false
+    bootstrap-servers: ${spring.embedded.kafka.brokers}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: test-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+  cloud:
+    openfeign:
+      client:
+        config:
+          inventory-service:
+            connectTimeout: 1000
+            readTimeout: 1000
 
-logging:
-  level:
-    org.hibernate.SQL: WARN
+catius:
+  kafka:
+    topics:
+      order-confirmed: order.order-confirmed.v1
+
+inventory:
+  base-url: http://localhost:8082
