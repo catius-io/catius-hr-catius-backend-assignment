@@ -116,3 +116,18 @@ Lombok is on the classpath (compileOnly + annotationProcessor) for both `main` a
 ## Submission Constraints That Affect Code Style
 
 The rubric (README §평가 루브릭) penalizes commits squashed into one lump and missing tests. When making changes, prefer **small, topic-scoped commits** and keep test coverage in lockstep with new logic. README also flags missing design rationale (lock strategy, CB numbers, topic naming, failure modes) as a deduction — surface those as comments or doc updates when introducing the relevant code.
+
+## Commit & PR Conventions
+
+Conventions are derived from the existing git history of this fork and from the constraint above; keep them stable across sessions so commit history reads consistently to the reviewer.
+
+- **Message format**: `<type>(<scope>): <Korean summary>` matching existing history. Allowed types: `feat`, `fix`, `chore`, `docs`, `test`, `refactor`, `perf`.
+- **Scope must be a domain or file area** — examples: `gradle`, `inventory`, `order`, `saga`, `feign`, `kafka`, `guide`, `readme`, `gitignore`. **Never use an AI tool name** (`claude`, `copilot`, etc.) as a scope; that conflates "the file being touched" with "who wrote it" and reads ambiguously to the reviewer.
+- **AI disclosure**: keep the `Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>` trailer on AI-assisted commits. README FAQ explicitly allows AI tools provided the candidate can defend the code in interview — honest disclosure aligns with that policy and avoids any appearance of hiding AI usage.
+- **Granularity**: prefer small, topic-scoped commits. The rubric penalizes "한 덩어리 커밋" (a single lump commit). When work spans multiple concerns (e.g. domain entity + repository + service + controller), split into separate commits and ideally separate PRs.
+- **Branch naming**: `<type>/<short-kebab-summary>` (e.g. `chore/dev-env-setup`, `docs/claude-md-assignment-context`, `feature/inventory-domain`). Keep `feature/*` reserved for actual rubric-graded functionality; environment, docs, and tooling work goes under `chore/*` or `docs/*` so PR lists are easy to scan.
+- **PR body** (Korean) should include three sections:
+  - `## Summary` — bullet list of what changed
+  - `## Why` — motivation tying back to the rubric or a concrete need
+  - `## Test plan` — checklist of how to verify
+- **Force-push policy**: only `--force-with-lease`, and only on un-merged branches owned by the candidate's fork. Never rewrite history on `main` once a PR has been merged.
