@@ -4,6 +4,7 @@ import com.catius.order.client.exception.InsufficientStockException;
 import com.catius.order.client.exception.InventoryClientException;
 import com.catius.order.client.exception.ProductNotFoundException;
 import com.github.tomakehurst.wiremock.client.WireMock;
+import com.github.tomakehurst.wiremock.stubbing.Scenario;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -104,6 +105,25 @@ class InventoryGatewayWireMockTest {
 
             // max-attempts=3 → 첫 호출 + 재시도 2회 = 총 3회
             verify(exactly(3), postRequestedFor(urlEqualTo(RESERVE_PATH)));
+        }
+
+        @Test
+        void 일시실패_후_복구되면_재시도가_성공으로_종료() {
+            // 1차: 500 → 2차: 204 — retry 의 *진짜 가치 (일시 결함 회복)* 시연
+            stubFor(post(urlEqualTo(RESERVE_PATH))
+                    .inScenario("retry-recovery")
+                    .whenScenarioStateIs(Scenario.STARTED)
+                    .willReturn(aResponse().withStatus(500))
+                    .willSetStateTo("first-failed"));
+            stubFor(post(urlEqualTo(RESERVE_PATH))
+                    .inScenario("retry-recovery")
+                    .whenScenarioStateIs("first-failed")
+                    .willReturn(aResponse().withStatus(204)));
+
+            assertThatNoException().isThrownBy(() -> gateway.reserve(PRODUCT_ID, 3));
+
+            // 1차 실패 + 2차 성공 = 총 2회 호출
+            verify(exactly(2), postRequestedFor(urlEqualTo(RESERVE_PATH)));
         }
 
         @Test
