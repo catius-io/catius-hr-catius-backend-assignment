@@ -16,14 +16,12 @@ import lombok.NoArgsConstructor;
 import java.time.Instant;
 
 /**
- * Saga 의 시작점이자 종착점. 상태 전이는 confirm / markFailed / markCompensated 로 일원화되며
- * 각 메서드는 PENDING 에서만 호출 가능 (종착 상태에서의 호출은 IllegalOrderStateException).
- *
- * 테이블명을 'orders' (복수) 로 둔 이유: 'order' 는 SQL 예약어라 일부 DB/도구에서 인용 부호 없이는 충돌.
+ * 주문 Aggregate Root.
+ * 상태 전이는 confirm/fail/compensate 만 외부 노출 — 그래프 정의는 {@link OrderStatus}.
  */
 @Entity
 @Getter
-@Table(name = "orders")
+@Table(name = "orders")  // 'order' 는 SQL 예약어 — 인용 부호 회피
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Order {
 
@@ -62,20 +60,20 @@ public class Order {
     }
 
     public void confirm() {
-        transition(OrderStatus.PENDING, OrderStatus.CONFIRMED);
+        transition(OrderStatus.CONFIRMED);
     }
 
-    public void markFailed() {
-        transition(OrderStatus.PENDING, OrderStatus.FAILED);
+    public void fail() {
+        transition(OrderStatus.FAILED);
     }
 
-    public void markCompensated() {
-        transition(OrderStatus.PENDING, OrderStatus.COMPENSATED);
+    public void compensate() {
+        transition(OrderStatus.COMPENSATED);
     }
 
-    private void transition(OrderStatus expected, OrderStatus next) {
-        if (this.status != expected) {
-            throw new IllegalOrderStateException(this.id, this.status, next);
+    private void transition(OrderStatus next) {
+        if (!status.canTransition(next)) {
+            throw new IllegalOrderStateException(id, status, next);
         }
         this.status = next;
     }

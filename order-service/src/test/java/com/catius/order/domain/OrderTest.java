@@ -47,7 +47,7 @@ class OrderTest {
     }
 
     @Nested
-    @DisplayName("confirm — Saga 정상 종료")
+    @DisplayName("confirm — Saga 정상 흐름 (PENDING → CONFIRMED)")
     class Confirm {
 
         @Test
@@ -76,7 +76,7 @@ class OrderTest {
         @Test
         void FAILED_에서_confirm_시도하면_예외() {
             Order order = Order.create(PRODUCT_ID, 1);
-            order.markFailed();
+            order.fail();
 
             assertThatThrownBy(order::confirm)
                     .isInstanceOf(IllegalOrderStateException.class);
@@ -85,7 +85,8 @@ class OrderTest {
         @Test
         void COMPENSATED_에서_confirm_시도하면_예외() {
             Order order = Order.create(PRODUCT_ID, 1);
-            order.markCompensated();
+            order.confirm();      // PENDING → CONFIRMED
+            order.compensate();   // CONFIRMED → COMPENSATED
 
             assertThatThrownBy(order::confirm)
                     .isInstanceOf(IllegalOrderStateException.class);
@@ -93,14 +94,14 @@ class OrderTest {
     }
 
     @Nested
-    @DisplayName("markFailed — reserve 자체 실패 (보상 불필요)")
-    class MarkFailed {
+    @DisplayName("fail — reserve 자체 실패 (PENDING → FAILED, 보상 불필요)")
+    class Fail {
 
         @Test
         void PENDING_에서_FAILED_로_전이() {
             Order order = Order.create(PRODUCT_ID, 1);
 
-            order.markFailed();
+            order.fail();
 
             assertThat(order.getStatus()).isEqualTo(OrderStatus.FAILED);
         }
@@ -108,51 +109,79 @@ class OrderTest {
         @Test
         void 이미_FAILED_이면_예외() {
             Order order = Order.create(PRODUCT_ID, 1);
-            order.markFailed();
+            order.fail();
 
-            assertThatThrownBy(order::markFailed)
+            assertThatThrownBy(order::fail)
                     .isInstanceOf(IllegalOrderStateException.class);
         }
 
         @Test
-        void CONFIRMED_에서_markFailed_시도하면_예외() {
+        void CONFIRMED_에서_fail_시도하면_예외() {
             Order order = Order.create(PRODUCT_ID, 1);
             order.confirm();
 
-            assertThatThrownBy(order::markFailed)
+            assertThatThrownBy(order::fail)
                     .isInstanceOf(IllegalOrderStateException.class);
         }
     }
 
     @Nested
-    @DisplayName("markCompensated — reserve 후 실패 → 보상 완료")
-    class MarkCompensated {
+    @DisplayName("compensate — reserve 후 실패 → 보상 완료 (CONFIRMED → COMPENSATED)")
+    class Compensate {
 
         @Test
-        void PENDING_에서_COMPENSATED_로_전이() {
+        void CONFIRMED_에서_COMPENSATED_로_전이() {
             Order order = Order.create(PRODUCT_ID, 1);
+            order.confirm();
 
-            order.markCompensated();
+            order.compensate();
 
             assertThat(order.getStatus()).isEqualTo(OrderStatus.COMPENSATED);
         }
 
         @Test
+        void PENDING_에서_compensate_시도하면_예외() {
+            Order order = Order.create(PRODUCT_ID, 1);
+
+            assertThatThrownBy(order::compensate)
+                    .isInstanceOf(IllegalOrderStateException.class)
+                    .satisfies(ex -> {
+                        IllegalOrderStateException e = (IllegalOrderStateException) ex;
+                        assertThat(e.getCurrentStatus()).isEqualTo(OrderStatus.PENDING);
+                        assertThat(e.getAttemptedTransition()).isEqualTo(OrderStatus.COMPENSATED);
+                    });
+        }
+
+        @Test
         void 이미_COMPENSATED_이면_예외() {
             Order order = Order.create(PRODUCT_ID, 1);
-            order.markCompensated();
+            order.confirm();
+            order.compensate();
 
-            assertThatThrownBy(order::markCompensated)
+            assertThatThrownBy(order::compensate)
                     .isInstanceOf(IllegalOrderStateException.class);
         }
 
         @Test
-        void CONFIRMED_에서_markCompensated_시도하면_예외() {
+        void FAILED_에서_compensate_시도하면_예외() {
             Order order = Order.create(PRODUCT_ID, 1);
-            order.confirm();
+            order.fail();
 
-            assertThatThrownBy(order::markCompensated)
+            assertThatThrownBy(order::compensate)
                     .isInstanceOf(IllegalOrderStateException.class);
+        }
+    }
+
+    @Nested
+    @DisplayName("OrderStatus.isTerminal — 종착 상태 식별")
+    class Terminal {
+
+        @Test
+        void FAILED_와_COMPENSATED_는_종착이고_PENDING_과_CONFIRMED_는_아니다() {
+            assertThat(OrderStatus.PENDING.isTerminal()).isFalse();
+            assertThat(OrderStatus.CONFIRMED.isTerminal()).isFalse();
+            assertThat(OrderStatus.FAILED.isTerminal()).isTrue();
+            assertThat(OrderStatus.COMPENSATED.isTerminal()).isTrue();
         }
     }
 }

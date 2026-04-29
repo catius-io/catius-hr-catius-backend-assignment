@@ -1,17 +1,25 @@
 package com.catius.order.domain;
 
 /**
- * Saga 흐름의 4-state 모델.
- *
- *   PENDING  ──confirm()──→  CONFIRMED       (정상 흐름 완료)
- *            ──markFailed()──→  FAILED       (reserve 자체 실패 — 보상 불필요)
- *            ──markCompensated()──→  COMPENSATED  (reserve 성공 후 confirm/publish 실패 → release 로 보상 완료)
- *
- * 모든 종착 상태(CONFIRMED / FAILED / COMPENSATED) 는 이후 전이 불가 (불변).
+ * 주문 Saga 의 상태.
+ * 전이 그래프는 {@link #canTransition(OrderStatus)} 참조; 종착 상태는 {@link #isTerminal()}.
  */
 public enum OrderStatus {
+
     PENDING,
     CONFIRMED,
     FAILED,
-    COMPENSATED
+    COMPENSATED;
+
+    public boolean canTransition(OrderStatus next) {
+        return switch (this) {
+            case PENDING                -> next == CONFIRMED || next == FAILED;
+            case CONFIRMED              -> next == COMPENSATED;
+            case FAILED, COMPENSATED    -> false;
+        };
+    }
+
+    public boolean isTerminal() {
+        return this == FAILED || this == COMPENSATED;
+    }
 }
