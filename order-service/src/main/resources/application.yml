@@ -50,16 +50,19 @@ spring.cloud.openfeign.client.config:
 # Resilience4j 기본 예시 — 근거를 가지고 수치를 조정하고, 조정 이유를 README 에 기재하세요.
 resilience4j:
   # AOP aspect 적용 순서 — Spring @Order 컨벤션상 *낮은 값* 이 *높은 precedence* = OUTER.
-  # 본 설정: Retry(2) OUTER / CircuitBreaker(3) INNER. R4J 2.2.0 의 default 와 동일한 의미 — 명시화.
+  # 본 설정: CircuitBreaker(2) OUTER / Retry(3) INNER. R4J 2.2.0 의 default (Retry outer) 를 *swap*.
   #
-  # 동작: 각 retry 시도가 CB 체크를 거침. CB 가 OPEN 이면 retry 시도 자체가 즉시 차단되어 빠른 실패.
-  # 의도: "이미 알려진 깨진 서비스에 retry 하지 마라" — R4J 공식 권장.
+  # 동작: CircuitBreaker(check) { Retry { call } } — 한 호출 단위로 retry 가 자가 회복 시도, retry 의
+  # *최종 결과* (성공/실패) 만 CB 에 1건 기록.
   #
-  # 4xx 영구 실패는 ignore-exceptions 로 CB failure 카운트에서 제외되므로,
-  # CB 의 sliding-window 는 사실상 5xx/timeout/네트워크 실패 *각 시도* 만 보게 됨.
-  # 이게 "가용성 신호" 로 충분히 fine-grained 하다는 R4J 의 default 결정.
+  # 의도:
+  # - 일시적 5xx/timeout 은 retry 가 흡수 — 자가 회복되면 CB 에 success 로만 기록 (OPEN 빈도 ↓).
+  # - retry 가 끝까지 실패한 경우만 CB 가 *진짜 가용성 문제* 로 간주.
+  # - "각 retry 시도를 CB 가 카운트" 하면 일시 결함이 CB OPEN 을 빠르게 트리거해 자가 회복 기회 차단.
+  #
+  # 4xx 영구 실패는 ignore-exceptions 로 어차피 CB 카운트에서 제외 — 이중 안전망.
   circuitbreaker:
-    circuit-breaker-aspect-order: 3   # INNER
+    circuit-breaker-aspect-order: 2   # OUTER (낮은 값이 outer)
     instances:
       inventoryClient:
         register-health-indicator: true
@@ -82,7 +85,7 @@ resilience4j:
         # 실효 timeout 은 spring.cloud.openfeign.client.config.inventoryClient.read-timeout 으로 동등하게 구현.
         timeout-duration: 2s
   retry:
-    retry-aspect-order: 2              # OUTER (낮은 값이 outer)
+    retry-aspect-order: 3              # INNER (CB 안에서 자가 회복 시도)
     instances:
       inventoryClient:
         max-attempts: 3
