@@ -39,6 +39,14 @@ spring:
 inventory:
   base-url: ${INVENTORY_BASE_URL:http://localhost:8082}
 
+# Feign HTTP 클라이언트 timeout — @TimeLimiter 미적용 대안.
+# read-timeout 과 R4J retry 의 wait-duration 합이 전체 호출 budget 결정.
+# (read-timeout 2s × max-attempts 3 + wait-duration 500ms × 2 = 최대 ~7s)
+spring.cloud.openfeign.client.config:
+  inventoryClient:
+    connect-timeout: 1000
+    read-timeout: 2000
+
 # Resilience4j 기본 예시 — 근거를 가지고 수치를 조정하고, 조정 이유를 README 에 기재하세요.
 resilience4j:
   circuitbreaker:
@@ -52,18 +60,26 @@ resilience4j:
         wait-duration-in-open-state: 10s
         permitted-number-of-calls-in-half-open-state: 3
         automatic-transition-from-open-to-half-open-enabled: true
+        # 영구 실패(4xx) 는 inventory 의 가용성 이슈가 아니므로 CB failure 카운트에서 제외.
+        # CB 는 "5xx / 네트워크 / timeout" 같은 서비스 자체 문제만 반영해야 한다.
+        ignore-exceptions:
+          - com.catius.order.client.exception.InsufficientStockException
+          - com.catius.order.client.exception.ProductNotFoundException
   timelimiter:
     instances:
       inventoryClient:
+        # 현재 미적용 — R4J @TimeLimiter 는 CompletableFuture 변환이 필요해 동기 Feign 시그니처와 맞지 않음.
+        # 실효 timeout 은 spring.cloud.openfeign.client.config.inventoryClient.read-timeout 으로 동등하게 구현.
         timeout-duration: 2s
   retry:
     instances:
       inventoryClient:
         max-attempts: 3
         wait-duration: 500ms
-        retry-exceptions:
-          - java.io.IOException
-          - java.util.concurrent.TimeoutException
+        # "영구 실패는 재시도 무의미" 정책. 그 외 (5xx / 네트워크 / timeout) 는 모두 재시도.
+        ignore-exceptions:
+          - com.catius.order.client.exception.InsufficientStockException
+          - com.catius.order.client.exception.ProductNotFoundException
 
 # Kafka 토픽 — 지원자가 정한 네이밍 규칙으로 조정
 catius:
