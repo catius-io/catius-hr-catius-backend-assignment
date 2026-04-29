@@ -3,6 +3,7 @@ package com.catius.order.client;
 import com.catius.order.client.dto.ReleaseInventoryRequest;
 import com.catius.order.client.dto.ReserveInventoryRequest;
 import com.catius.order.client.exception.InventoryClientException;
+import feign.FeignException;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
@@ -46,6 +47,11 @@ public class InventoryGateway {
      * InventoryClientException 으로 통일. 도메인 예외 (InventoryClientException 자손) 는
      * R4J retry/ignore 정책 매칭 보존을 위해 그대로 rethrow.
      *
+     * catch 범위를 FeignException 으로 좁힌 이유: catch (RuntimeException) 으로 두면 우리 코드의
+     * NPE/IllegalStateException 같은 *프로그래머 에러* 가 "inventory ... failed" 로 wrap 되어
+     * 진단 메시지가 거짓말이 됨. Feign 이 던진 것만 인프라 실패로 간주.
+     * (FeignException 은 RetryableException 의 부모 — timeout/connection refused 도 포함)
+     *
      * 본 헬퍼가 단일 지점이므로, 향후 transport 에러 종류별 세분화(예: InventoryTimeoutException) 가
      * 필요해지면 이 메서드 한 곳만 확장하면 된다 (reserve/release 의 catch 중복 폭발 방지).
      */
@@ -54,7 +60,7 @@ public class InventoryGateway {
             call.run();
         } catch (InventoryClientException e) {
             throw e;
-        } catch (RuntimeException e) {
+        } catch (FeignException e) {
             throw new InventoryClientException("inventory " + op + " failed", e);
         }
     }
