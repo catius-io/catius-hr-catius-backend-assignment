@@ -10,6 +10,8 @@ import org.junit.jupiter.api.RepeatedTest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
+import java.util.List;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -19,7 +21,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
-@DisplayName("Inventory 동시성 통합 테스트 — 비관 락이 재고 음수를 방지하는지 검증")
+@DisplayName("Inventory 동시성 통합 테스트 — 조건부 atomic UPDATE 가 재고 음수를 방지하는지 검증")
 class InventoryConcurrencyTest {
 
     private static final Long PRODUCT_ID = 9001L;
@@ -88,6 +90,7 @@ class InventoryConcurrencyTest {
         CountDownLatch ready = new CountDownLatch(threads);
         CountDownLatch start = new CountDownLatch(1);
         CountDownLatch done = new CountDownLatch(threads);
+        ConcurrentLinkedQueue<Throwable> unexpected = new ConcurrentLinkedQueue<>();
 
         try (ExecutorService executor = Executors.newFixedThreadPool(threads)) {
             for (int i = 0; i < threads; i++) {
@@ -102,9 +105,10 @@ class InventoryConcurrencyTest {
                     } catch (InsufficientStockException e) {
                         failure.incrementAndGet();
 
-                    } catch (Exception e) {
-                        // 락 timeout / deadlock 등 포함
-                        failure.incrementAndGet();
+                    } catch (Throwable t) {
+                        // atomic UPDATE 경로에서는 InsufficientStockException 외의 실패가 나오면 안 된다.
+                        // 락 timeout / SQLITE_BUSY 등 인프라성 예외도 여기로 떨어지면 즉시 테스트 실패.
+                        unexpected.add(t);
 
                     } finally {
                         done.countDown();
@@ -127,5 +131,9 @@ class InventoryConcurrencyTest {
                 .as("모든 동시 요청이 60초 안에 완료되어야 함")
                 .isTrue();
         }
+
+        assertThat(List.copyOf(unexpected))
+            .as("예상 외 예외가 발생하면 atomic UPDATE 모델이 깨진 것 — %s", unexpected)
+            .isEmpty();
     }
 }
