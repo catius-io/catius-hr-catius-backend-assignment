@@ -9,6 +9,7 @@
  *   - p95 응답시간 < 500ms
  *   - p99 응답시간 < 1000ms
  *   - 에러율 < 1%
+ *   - Saga 정상 종료율 > 90% (CONFIRMED 또는 CANCELLED)
  *
  * Request  POST /api/v1/orders
  *   { customerId: Long, items: [{ productId: String, quantity: int }] }
@@ -17,9 +18,10 @@
 
 import http from 'k6/http';
 import { check, sleep } from 'k6';
-import { Trend } from 'k6/metrics';
+import { Trend, Rate } from 'k6/metrics';
 
-const orderDuration = new Trend('order_create_duration', true);
+const orderDuration   = new Trend('order_create_duration', true);
+const sagaSuccessRate = new Rate('saga_success_rate');
 
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8081';
 const INV_URL  = __ENV.INV_URL  || 'http://localhost:8082';
@@ -30,14 +32,15 @@ const CUSTOMER_IDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 // ── SLO thresholds ────────────────────────────────────────────────────────────
 export const options = {
   stages: [
-    { duration: '30s', target: 5  },  // ramp-up
-    { duration: '1m',  target: 10 },  // steady-state
+    { duration: '30s', target: 10 },  // ramp-up
+    { duration: '60s', target: 10 },  // steady-state
     { duration: '20s', target: 0  },  // ramp-down
   ],
   thresholds: {
     http_req_duration:     ['p(95)<500', 'p(99)<1000'],
     http_req_failed:       ['rate<0.01'],
     order_create_duration: ['p(95)<500'],
+    saga_success_rate:     ['rate>0.90'],
   },
 };
 
@@ -78,11 +81,36 @@ export default function () {
   orderDuration.add(Date.now() - start);
 
   check(res, {
-    'status is 201':             (r) => r.status === 201,
-    'response is array':         (r) => Array.isArray(r.json()),
-    'first order has id':        (r) => r.json()[0]?.id !== undefined,
-    'first order has status':    (r) => r.json()[0]?.status !== undefined,
+    'status is 201':          (r) => r.status === 201,
+    'response is array':      (r) => Array.isArray(r.json()),
+    'first order has id':     (r) => r.json()[0]?.id !== undefined,
+    'first order has status': (r) => r.json()[0]?.status !== undefined,
   });
+
+  // ── Saga 정상 종료율 측정 ──────────────────────────────────────────────────
+  // 주문 생성 직후 상태는 PENDING이므로, 최종 상태(CONFIRMED/CANCELLED)가 될
+  // 때까지 최대 5초(10회 × 500ms) 폴링한다.
+  const orderId = res.status === 201 ? res.json()[0]?.id : null;
+  if (orderId) {
+    let settled = false;
+    for (let i = 0; i < 10; i++) {
+      sleep(0.5);
+      const poll = http.get(`${BASE_URL}/api/v1/orders/${orderId}`, { headers });
+      if (poll.status === 200) {
+        const status = poll.json()?.status;
+        if (status === 'CONFIRMED' || status === 'CANCELLED') {
+          sagaSuccessRate.add(true);
+          settled = true;
+          break;
+        }
+      }
+    }
+    if (!settled) {
+      sagaSuccessRate.add(false);
+    }
+  } else {
+    sagaSuccessRate.add(false);
+  }
 
   sleep(Math.random() * 0.5 + 0.5);
 }

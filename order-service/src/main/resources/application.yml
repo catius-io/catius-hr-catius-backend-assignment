@@ -6,12 +6,11 @@ spring:
     name: order-service
 
   datasource:
-    url: jdbc:sqlite:./order-service.db?journal_mode=WAL&busy_timeout=10000
+    url: jdbc:sqlite:./order-service.?journal_mode=WAL&busy_timeout=10000
     driver-class-name: org.sqlite.JDBC
     hikari:
       maximum-pool-size: 1
       connection-timeout: 10000
-      connection-init-sql: PRAGMA busy_timeout=10000
 
   jpa:
     hibernate:
@@ -41,7 +40,7 @@ spring:
         delivery.timeout.ms: 2000  # 전체 전달 타임아웃 (≥ request.timeout.ms)
     listener:
       # 로컬 전체 기동 시 외부 Kafka 가 없다면 `false` 로 두고, 테스트에서만 Embedded Kafka 로 검증하는 것도 한 방법입니다.
-      auto-startup: true
+      auto-startup: false
 
   # Feign 타임아웃 — timelimiter(2s)보다 짧게 설정해 CB가 먼저 감지하도록 함
   cloud:

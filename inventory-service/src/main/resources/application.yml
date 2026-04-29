@@ -35,7 +35,7 @@ spring:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
     listener:
-      auto-startup: true
+      auto-startup: false
 
 management:
   endpoints:

@@ -20,7 +20,7 @@ brew install k6
 
 ## 시나리오
 
-| 파일 | 목적 | VU | 시간 |
+| 파일 | 목적 | VU | 시간 |ㅊ 
 |---|---|---|---|
 | `scenarios/create-order.js` | 주문 생성 부하 테스트 | 0→10→0 | 110s |
 
@@ -54,9 +54,9 @@ BASE_URL=http://localhost:8081 INV_URL=http://localhost:8082 k6 run perf/scenari
 - GitHub Actions 에 `k6 run` 을 붙여 성능 시나리오를 CI 에서 자동화하면 가점.
   예) `actions/checkout@v4` → `grafana/setup-k6-action@v1` → `grafana/run-k6-action@v1`
 
---- 
+---
 
-## 병목 해결
+## k6 병목 해결
 - 측정 결과
   - http_req_duration p95 = 260.25ms
   - http_req_failed = 13.26%
@@ -76,3 +76,5 @@ BASE_URL=http://localhost:8081 INV_URL=http://localhost:8082 k6 run perf/scenari
 - 결과
   - http_req_duration p95 = 271.54ms
   - http_req_failed = 0%
+
+---

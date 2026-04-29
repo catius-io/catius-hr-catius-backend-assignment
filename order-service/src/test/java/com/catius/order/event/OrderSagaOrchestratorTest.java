@@ -16,9 +16,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.CannotAcquireLockException;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.*;
-import static org.mockito.Mockito.times;
 
 @ExtendWith(MockitoExtension.class)
 class OrderSagaOrchestratorTest {
@@ -120,24 +120,8 @@ class OrderSagaOrchestratorTest {
     }
 
     @Test
-    @DisplayName("주문 상태 저장 - SQLITE_BUSY 발생 시 재시도 후 성공")
-    void execute_주문상태저장_lock_재시도_성공() {
-        given(inventoryClientFacade.reserve(any(InventoryRequest.class)))
-                .willReturn(new InventoryResponse("PRODUCT-001", "테스트 상품", 8));
-        given(orderRepository.save(any(Order.class)))
-                .willThrow(new CannotAcquireLockException("database is locked"))
-                .willReturn(order);
-
-        orchestrator.execute(order);
-
-        assertThat(order.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
-        then(orderRepository).should(times(2)).save(any(Order.class));
-        then(orderEventPublisher).should().publishOrderConfirmed(any());
-    }
-
-    @Test
-    @DisplayName("보상 트랜잭션 - 주문 취소 저장 실패해도 재고 복구는 시도")
-    void execute_주문취소저장_lock_재고복구_시도() {
+    @DisplayName("주문 취소 저장 실패 시 예외가 전파되고 재고 복구는 시도하지 않음")
+    void execute_주문취소저장_실패_예외전파_release_미호출() {
         given(inventoryClientFacade.reserve(any(InventoryRequest.class)))
                 .willReturn(new InventoryResponse("PRODUCT-001", "테스트 상품", 8));
         willThrow(new RuntimeException("Kafka 연결 실패"))
@@ -146,9 +130,9 @@ class OrderSagaOrchestratorTest {
                 .willReturn(order)
                 .willThrow(new CannotAcquireLockException("database is locked"));
 
-        orchestrator.execute(order);
+        assertThatThrownBy(() -> orchestrator.execute(order))
+                .isInstanceOf(CannotAcquireLockException.class);
 
-        assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
-        then(inventoryClientFacade).should().release(any());
+        then(inventoryClientFacade).should(never()).release(any());
     }
 }

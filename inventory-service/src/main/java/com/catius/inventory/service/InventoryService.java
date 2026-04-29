@@ -3,7 +3,6 @@ package com.catius.inventory.service;
 import com.catius.inventory.controller.dto.request.InventoryRequest;
 import com.catius.inventory.controller.dto.response.InventoryResponse;
 import com.catius.inventory.domain.Inventory;
-import com.catius.inventory.exception.InsufficientStockException;
 import com.catius.inventory.exception.StockNotFoundException;
 import com.catius.inventory.repository.InventoryRepository;
 import lombok.RequiredArgsConstructor;
@@ -26,25 +25,17 @@ public class InventoryService {
 
     @Transactional
     public InventoryResponse reserve(InventoryRequest request) {
-        int updated = inventoryRepository.reserve(request.productId(), request.quantity());
-        if (updated == 0) {
-            Inventory inventory = inventoryRepository.findByProductId(request.productId())
-                    .orElseThrow(() -> new StockNotFoundException(request.productId()));
-            throw new InsufficientStockException(request.productId(), inventory.getQuantity(), request.quantity());
-        }
-        return inventoryRepository.findByProductId(request.productId())
-                .map(InventoryResponse::from)
+        Inventory inventory = inventoryRepository.findByProductId(request.productId())
                 .orElseThrow(() -> new StockNotFoundException(request.productId()));
+        inventory.deduct(request.quantity());
+        return InventoryResponse.from(inventory);
     }
 
     @Transactional
     public InventoryResponse release(InventoryRequest request) {
-        int updated = inventoryRepository.release(request.productId(), request.quantity());
-        if (updated == 0) {
-            throw new StockNotFoundException(request.productId());
-        }
-        return inventoryRepository.findByProductId(request.productId())
-                .map(InventoryResponse::from)
+        Inventory inventory = inventoryRepository.findByProductId(request.productId())
                 .orElseThrow(() -> new StockNotFoundException(request.productId()));
+        inventory.restore(request.quantity());
+        return InventoryResponse.from(inventory);
     }
 }
