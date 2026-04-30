@@ -6,6 +6,7 @@ import com.catius.order.domain.Order;
 import com.catius.order.domain.OrderStatus;
 import com.catius.order.messaging.OrderConfirmedEvent;
 import com.catius.order.repository.OrderRepository;
+import com.catius.order.testsupport.SagaIntegrationTest;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;

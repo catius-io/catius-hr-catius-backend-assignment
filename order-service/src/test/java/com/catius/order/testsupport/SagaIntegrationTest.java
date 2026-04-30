@@ -1,4 +1,4 @@
-package com.catius.order.service;
+package com.catius.order.testsupport;
 
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.cloud.contract.wiremock.AutoConfigureWireMock;
@@ -15,6 +15,9 @@ import java.lang.annotation.Target;
  *
  * 클래스별 추가 설정 (@EmbeddedKafka, kafka.bootstrap-servers, kafka.listener.auto-startup 등) 은
  * 각 테스트 클래스가 자기 컨텍스트에 맞춰 @TestPropertySource 로 보강.
+ *
+ * inventory 측의 @WireMockInventoryTest 와는 별개 — 두 카테고리 (HTTP contract vs Saga 흐름)
+ * 가 다른 의도를 가지므로 형제 어노테이션으로 유지.
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)

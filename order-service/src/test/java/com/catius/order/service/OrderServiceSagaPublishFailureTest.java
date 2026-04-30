@@ -5,6 +5,7 @@ import com.catius.order.domain.OrderStatus;
 import com.catius.order.messaging.OrderEventPublishException;
 import com.catius.order.messaging.OrderEventPublisher;
 import com.catius.order.repository.OrderRepository;
+import com.catius.order.testsupport.SagaIntegrationTest;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
