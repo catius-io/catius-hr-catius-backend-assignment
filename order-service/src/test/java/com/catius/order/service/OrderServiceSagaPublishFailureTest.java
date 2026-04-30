@@ -6,7 +6,7 @@ import com.catius.order.messaging.OrderEventPublishException;
 import com.catius.order.messaging.OrderEventPublisher;
 import com.catius.order.repository.OrderRepository;
 import com.catius.order.testsupport.SagaIntegrationTest;
-import com.github.tomakehurst.wiremock.client.WireMock;
+import com.catius.order.testsupport.SagaTestSupport;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -20,6 +20,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.verify;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -58,8 +59,7 @@ class OrderServiceSagaPublishFailureTest {
 
     @BeforeEach
     void setUp() {
-        WireMock.reset();
-        orderRepository.deleteAll();
+        SagaTestSupport.resetSagaState(orderRepository);
     }
 
     @Test
@@ -74,7 +74,7 @@ class OrderServiceSagaPublishFailureTest {
                 .isInstanceOf(OrderEventPublishException.class);
 
         // release 호출됨 (보상 트리거)
-        WireMock.verify(exactly(1), postRequestedFor(urlEqualTo(RELEASE_PATH)));
+        verify(exactly(1), postRequestedFor(urlEqualTo(RELEASE_PATH)));
 
         // Order 는 COMPENSATED 로 마킹
         Order persisted = orderRepository.findAll().get(0);
@@ -95,7 +95,7 @@ class OrderServiceSagaPublishFailureTest {
                 .isInstanceOf(OrderEventPublishException.class);
 
         // release 시도는 했음
-        WireMock.verify(exactly(1), postRequestedFor(urlEqualTo(RELEASE_PATH)));
+        verify(exactly(1), postRequestedFor(urlEqualTo(RELEASE_PATH)));
 
         // Order 는 CONFIRMED 인 채로 남음 — 운영 정정 영역.
         // (compensate() 가 release 성공 후에야 status 변경하므로, release 실패 시 도메인 상태 변경 안 됨)

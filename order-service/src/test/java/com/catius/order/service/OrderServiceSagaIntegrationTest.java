@@ -7,32 +7,28 @@ import com.catius.order.domain.OrderStatus;
 import com.catius.order.messaging.OrderConfirmedEvent;
 import com.catius.order.repository.OrderRepository;
 import com.catius.order.testsupport.SagaIntegrationTest;
-import com.github.tomakehurst.wiremock.client.WireMock;
+import com.catius.order.testsupport.SagaTestSupport;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.kafka.test.EmbeddedKafkaBroker;
 import org.springframework.kafka.test.context.EmbeddedKafka;
 import org.springframework.kafka.test.utils.KafkaTestUtils;
 import org.springframework.test.context.TestPropertySource;
 
 import java.time.Duration;
-import java.util.Map;
-import java.util.UUID;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.verify;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -70,17 +66,8 @@ class OrderServiceSagaIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        WireMock.reset();
-        orderRepository.deleteAll();
-
-        Map<String, Object> consumerProps = KafkaTestUtils.consumerProps(
-                "saga-test-" + UUID.randomUUID(), "true", embeddedKafka);
-        consumerProps.put("key.deserializer", StringDeserializer.class);
-        consumerProps.put("value.deserializer", JsonDeserializer.class);
-        consumerProps.put(JsonDeserializer.TRUSTED_PACKAGES, "*");
-        consumerProps.put(JsonDeserializer.VALUE_DEFAULT_TYPE, OrderConfirmedEvent.class.getName());
-        consumer = new KafkaConsumer<>(consumerProps);
-        embeddedKafka.consumeFromAnEmbeddedTopic(consumer, TOPIC);
+        SagaTestSupport.resetSagaState(orderRepository);
+        consumer = SagaTestSupport.createOrderConfirmedConsumer(embeddedKafka, TOPIC);
     }
 
     @AfterEach
@@ -113,7 +100,7 @@ class OrderServiceSagaIntegrationTest {
             assertThat(record.value().eventId()).isNotBlank();
 
             // release 호출되지 않음 (정상 흐름)
-            WireMock.verify(0, postRequestedFor(urlEqualTo(RELEASE_PATH)));
+            verify(0, postRequestedFor(urlEqualTo(RELEASE_PATH)));
         }
     }
 
@@ -134,7 +121,7 @@ class OrderServiceSagaIntegrationTest {
                     .isInstanceOf(InsufficientStockException.class);
 
             assertThat(orderRepository.count()).isZero();
-            WireMock.verify(0, postRequestedFor(urlEqualTo(RELEASE_PATH)));
+            verify(0, postRequestedFor(urlEqualTo(RELEASE_PATH)));
         }
 
         @Test
@@ -150,7 +137,7 @@ class OrderServiceSagaIntegrationTest {
                     .isInstanceOf(ProductNotFoundException.class);
 
             assertThat(orderRepository.count()).isZero();
-            WireMock.verify(0, postRequestedFor(urlEqualTo(RELEASE_PATH)));
+            verify(0, postRequestedFor(urlEqualTo(RELEASE_PATH)));
         }
     }
 }
