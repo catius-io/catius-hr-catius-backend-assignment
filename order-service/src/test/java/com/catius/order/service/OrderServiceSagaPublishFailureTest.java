@@ -10,9 +10,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.cloud.contract.wiremock.AutoConfigureWireMock;
 import org.springframework.test.context.TestPropertySource;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
@@ -37,14 +35,9 @@ import static org.mockito.BDDMockito.willThrow;
  * 본 클래스는 publisher 를 mock 하므로 @EmbeddedKafka 불필요. 실제 Kafka 토픽 검증은
  * OrderServiceSagaIntegrationTest (real publisher) 가 책임.
  */
-@SpringBootTest(properties = {
-        "inventory.base-url=http://localhost:${wiremock.server.port}",
-        "spring.kafka.listener.auto-startup=false"
-})
-@AutoConfigureWireMock(port = 0)
+@SagaIntegrationTest
 @TestPropertySource(properties = {
-        "resilience4j.retry.instances.inventoryClient.max-attempts=1",
-        "resilience4j.circuitbreaker.instances.inventoryClient.minimum-number-of-calls=100"
+        "spring.kafka.listener.auto-startup=false"
 })
 @DisplayName("OrderService Saga 통합 — publish 실패 보상 (mocked publisher)")
 class OrderServiceSagaPublishFailureTest {

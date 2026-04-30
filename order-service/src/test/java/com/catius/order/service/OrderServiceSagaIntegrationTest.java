@@ -17,8 +17,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.cloud.contract.wiremock.AutoConfigureWireMock;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.kafka.test.EmbeddedKafkaBroker;
 import org.springframework.kafka.test.context.EmbeddedKafka;
@@ -45,15 +43,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  *   stubFor 와 매칭되지 않는 함정 회피.
  * - 본 클래스는 *real publisher* 위주의 검증, 분리 클래스는 *mocked publisher* 위주.
  */
-@SpringBootTest(properties = {
-        "inventory.base-url=http://localhost:${wiremock.server.port}",
-        "spring.kafka.bootstrap-servers=${spring.embedded.kafka.brokers}"
-})
-@AutoConfigureWireMock(port = 0)
+@SagaIntegrationTest
 @EmbeddedKafka(partitions = 1, topics = {"order.order-confirmed.v1"})
 @TestPropertySource(properties = {
-        "resilience4j.retry.instances.inventoryClient.max-attempts=1",
-        "resilience4j.circuitbreaker.instances.inventoryClient.minimum-number-of-calls=100"
+        "spring.kafka.bootstrap-servers=${spring.embedded.kafka.brokers}"
 })
 @DisplayName("OrderService Saga 통합 — 정상 / reserve 실패 (real publisher + EmbeddedKafka)")
 class OrderServiceSagaIntegrationTest {
