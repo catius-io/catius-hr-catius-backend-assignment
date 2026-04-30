@@ -3,6 +3,7 @@ package com.catius.order.client;
 import com.catius.order.client.exception.InsufficientStockException;
 import com.catius.order.client.exception.InventoryClientException;
 import com.catius.order.client.exception.ProductNotFoundException;
+import com.catius.order.testsupport.WireMockInventoryTest;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.stubbing.Scenario;
 import org.junit.jupiter.api.BeforeEach;
@@ -10,8 +11,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.cloud.contract.wiremock.AutoConfigureWireMock;
 import org.springframework.test.context.TestPropertySource;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
@@ -24,13 +23,10 @@ import static com.github.tomakehurst.wiremock.client.WireMock.verify;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@SpringBootTest(properties = {
-        "inventory.base-url=http://localhost:${wiremock.server.port}",
-        "spring.kafka.listener.auto-startup=false",
-        "spring.cloud.openfeign.client.config.inventoryClient.read-timeout=300"
-})
-@AutoConfigureWireMock(port = 0)
+@WireMockInventoryTest
 @TestPropertySource(properties = {
+        // timeout 시나리오를 빠르게 재현하기 위한 read-timeout 압축
+        "spring.cloud.openfeign.client.config.inventoryClient.read-timeout=300",
         // 빠른 테스트를 위해 retry wait 압축
         "resilience4j.retry.instances.inventoryClient.wait-duration=10ms",
         // CB 가 본 retry 테스트를 trigger 하지 않도록 sliding window 를 충분히 크게

@@ -2,6 +2,7 @@ package com.catius.order.client;
 
 import com.catius.order.client.exception.InsufficientStockException;
 import com.catius.order.client.exception.InventoryClientException;
+import com.catius.order.testsupport.WireMockInventoryTest;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
@@ -11,8 +12,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.cloud.contract.wiremock.AutoConfigureWireMock;
 import org.springframework.test.context.TestPropertySource;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
@@ -32,11 +31,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * 설정되어야 한다. retry 검증용 InventoryGatewayWireMockTest 의 큰 window (100) 와 충돌하므로
  * 별도 클래스로 분리.
  */
-@SpringBootTest(properties = {
-        "inventory.base-url=http://localhost:${wiremock.server.port}",
-        "spring.kafka.listener.auto-startup=false"
-})
-@AutoConfigureWireMock(port = 0)
+@WireMockInventoryTest
 @TestPropertySource(properties = {
         // CB 가 빠르게 OPEN/CLOSED 로 전이되도록 작은 window. retry 도 1회로 압축해 호출 수 통제.
         "resilience4j.circuitbreaker.instances.inventoryClient.sliding-window-size=4",

@@ -5,12 +5,11 @@ import com.catius.order.client.dto.ReserveInventoryRequest;
 import com.catius.order.client.exception.InsufficientStockException;
 import com.catius.order.client.exception.InventoryClientException;
 import com.catius.order.client.exception.ProductNotFoundException;
+import com.catius.order.testsupport.WireMockInventoryTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.cloud.contract.wiremock.AutoConfigureWireMock;
 import org.springframework.test.context.TestPropertySource;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
@@ -24,11 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@SpringBootTest(properties = {
-        "inventory.base-url=http://localhost:${wiremock.server.port}",
-        "spring.kafka.listener.auto-startup=false"
-})
-@AutoConfigureWireMock(port = 0)
+@WireMockInventoryTest
 @TestPropertySource(properties = {
         // Resilience4j 의 retry 가 본 contract 테스트에 영향을 주지 않게 disable. R4J 시나리오는 별도 PR.
         "resilience4j.retry.instances.inventoryClient.max-attempts=1"
