@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.TestPropertySource;
 
+import static com.catius.order.testsupport.InventoryEndpoints.RESERVE_PATH;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.exactly;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
@@ -37,7 +38,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class InventoryGatewayWireMockTest {
 
     private static final long PRODUCT_ID = 9001L;
-    private static final String RESERVE_PATH = "/api/v1/inventory/reserve";
 
     @Autowired
     private InventoryGateway gateway;

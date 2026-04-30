@@ -12,6 +12,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.TestPropertySource;
 
+import static com.catius.order.testsupport.InventoryEndpoints.RELEASE_PATH;
+import static com.catius.order.testsupport.InventoryEndpoints.RESERVE_PATH;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalToJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
@@ -42,13 +44,13 @@ class InventoryClientWireMockTest {
 
         @Test
         void 정상_204_는_예외_없이_종료() {
-            stubFor(post(urlEqualTo("/api/v1/inventory/reserve"))
+            stubFor(post(urlEqualTo(RESERVE_PATH))
                     .willReturn(aResponse().withStatus(204)));
 
             assertThatNoException().isThrownBy(() ->
                     client.reserve(new ReserveInventoryRequest(PRODUCT_ID, 3)));
 
-            verify(postRequestedFor(urlEqualTo("/api/v1/inventory/reserve"))
+            verify(postRequestedFor(urlEqualTo(RESERVE_PATH))
                     .withRequestBody(equalToJson("""
                             {"productId": 9001, "quantity": 3}
                             """)));
@@ -56,7 +58,7 @@ class InventoryClientWireMockTest {
 
         @Test
         void 응답_409_는_InsufficientStockException_으로_변환된다() {
-            stubFor(post(urlEqualTo("/api/v1/inventory/reserve"))
+            stubFor(post(urlEqualTo(RESERVE_PATH))
                     .willReturn(aResponse()
                             .withStatus(409)
                             .withHeader("Content-Type", "application/json")
@@ -72,7 +74,7 @@ class InventoryClientWireMockTest {
 
         @Test
         void 응답_404_는_ProductNotFoundException_으로_변환된다() {
-            stubFor(post(urlEqualTo("/api/v1/inventory/reserve"))
+            stubFor(post(urlEqualTo(RESERVE_PATH))
                     .willReturn(aResponse()
                             .withStatus(404)
                             .withHeader("Content-Type", "application/json")
@@ -86,7 +88,7 @@ class InventoryClientWireMockTest {
 
         @Test
         void 그_외_5xx_는_generic_InventoryClientException() {
-            stubFor(post(urlEqualTo("/api/v1/inventory/reserve"))
+            stubFor(post(urlEqualTo(RESERVE_PATH))
                     .willReturn(aResponse().withStatus(500)));
 
             assertThatThrownBy(() -> client.reserve(new ReserveInventoryRequest(PRODUCT_ID, 3)))
@@ -102,13 +104,13 @@ class InventoryClientWireMockTest {
 
         @Test
         void 정상_204_는_예외_없이_종료() {
-            stubFor(post(urlEqualTo("/api/v1/inventory/release"))
+            stubFor(post(urlEqualTo(RELEASE_PATH))
                     .willReturn(aResponse().withStatus(204)));
 
             assertThatNoException().isThrownBy(() ->
                     client.release(new ReleaseInventoryRequest(PRODUCT_ID, 3)));
 
-            verify(postRequestedFor(urlEqualTo("/api/v1/inventory/release"))
+            verify(postRequestedFor(urlEqualTo(RELEASE_PATH))
                     .withRequestBody(equalToJson("""
                             {"productId": 9001, "quantity": 3}
                             """)));
@@ -116,7 +118,7 @@ class InventoryClientWireMockTest {
 
         @Test
         void 응답_404_는_ProductNotFoundException() {
-            stubFor(post(urlEqualTo("/api/v1/inventory/release"))
+            stubFor(post(urlEqualTo(RELEASE_PATH))
                     .willReturn(aResponse()
                             .withStatus(404)
                             .withHeader("Content-Type", "application/json")
