@@ -23,6 +23,9 @@ import org.springframework.test.context.TestPropertySource;
 
 import java.time.Duration;
 
+import static com.catius.order.testsupport.InventoryEndpoints.RELEASE_PATH;
+import static com.catius.order.testsupport.InventoryEndpoints.RESERVE_PATH;
+import static com.catius.order.testsupport.KafkaTopics.ORDER_CONFIRMED;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
@@ -41,7 +44,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * - 본 클래스는 *real publisher* 위주의 검증, 분리 클래스는 *mocked publisher* 위주.
  */
 @SagaIntegrationTest
-@EmbeddedKafka(partitions = 1, topics = {"order.order-confirmed.v1"})
+@EmbeddedKafka(partitions = 1, topics = {ORDER_CONFIRMED})
 @TestPropertySource(properties = {
         "spring.kafka.bootstrap-servers=${spring.embedded.kafka.brokers}"
 })
@@ -49,9 +52,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class OrderServiceSagaIntegrationTest {
 
     private static final long PRODUCT_ID = 9001L;
-    private static final String RESERVE_PATH = "/api/v1/inventory/reserve";
-    private static final String RELEASE_PATH = "/api/v1/inventory/release";
-    private static final String TOPIC = "order.order-confirmed.v1";
 
     @Autowired
     private OrderService service;
@@ -67,7 +67,7 @@ class OrderServiceSagaIntegrationTest {
     @BeforeEach
     void setUp() {
         SagaTestSupport.resetSagaState(orderRepository);
-        consumer = SagaTestSupport.createOrderConfirmedConsumer(embeddedKafka, TOPIC);
+        consumer = SagaTestSupport.createOrderConfirmedConsumer(embeddedKafka, ORDER_CONFIRMED);
     }
 
     @AfterEach
@@ -93,7 +93,7 @@ class OrderServiceSagaIntegrationTest {
 
             // Kafka 이벤트
             ConsumerRecord<String, OrderConfirmedEvent> record =
-                    KafkaTestUtils.getSingleRecord(consumer, TOPIC, Duration.ofSeconds(5));
+                    KafkaTestUtils.getSingleRecord(consumer, ORDER_CONFIRMED, Duration.ofSeconds(5));
             assertThat(record.value().orderId()).isEqualTo(created.getId());
             assertThat(record.value().productId()).isEqualTo(PRODUCT_ID);
             assertThat(record.value().quantity()).isEqualTo(3);

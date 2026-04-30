@@ -14,6 +14,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.TestPropertySource;
 
+import static com.catius.order.testsupport.InventoryEndpoints.RELEASE_PATH;
+import static com.catius.order.testsupport.InventoryEndpoints.RESERVE_PATH;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.exactly;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
@@ -45,8 +47,6 @@ import static org.mockito.BDDMockito.willThrow;
 class OrderServiceSagaPublishFailureTest {
 
     private static final long PRODUCT_ID = 9001L;
-    private static final String RESERVE_PATH = "/api/v1/inventory/reserve";
-    private static final String RELEASE_PATH = "/api/v1/inventory/release";
 
     @Autowired
     private OrderService service;
