@@ -5,6 +5,10 @@
 
 ---
 
+> **본 Fork의 추가 작업**: 설계 결정과 트레이드오프는 [`docs/decisions/`](docs/decisions/) 디렉터리에 ADR 형태로 기록되어 있습니다. 요약 인덱스는 README 하단의 [설계 결정](#설계-결정) 섹션 참조.
+
+---
+
 ## 스캐폴드 구성
 
 ```
@@ -199,6 +203,88 @@ curl -i -X POST http://localhost:8082/api/v1/inventory/reserve \
 | **설계 문서와 트레이드오프 기술** | 10% | README의 구조, 근거 있는 선택 설명 |
 
 **감점 요소**: 커밋이 한 덩어리로 몰려있음 / 테스트 전무 / README 부재 / 서킷 브레이커·Saga 등 핵심 요구 누락 / PR 설명 부실.
+
+---
+
+## 설계 결정
+
+> 본 구현의 설계 결정과 트레이드오프는 [`docs/decisions/`](docs/decisions/) 디렉터리에 ADR(Architecture Decision Record) 형태로 기록되어 있다. 아래는 인덱스와 핵심 요약.
+
+### 아키텍처 개요
+
+스캐폴드의 3-tier 구조(`controller` / `service` / `domain` / `repository`)를 유지하되, 외부 의존성(타 서비스 호출, 메시지 발행)에 한해 dependency inversion을 적용한다. `InventoryClient`·`OrderEventPublisher` 인터페이스를 service 층에 정의하고 구현체(`FeignInventoryClient`, `KafkaOrderEventPublisher`)를 service 하위 서브패키지에 둔다. 도메인은 Rich 모델로, 상태 전이 규칙은 엔티티 메서드 내부에서 검증한다.
+
+상세 사유는 [ADR-001](docs/decisions/ADR-001-architecture-style.md).
+
+### 핵심 흐름과 Order 상태
+
+Order 엔티티는 단일 상태 `CONFIRMED` 만 가진다. `/reserve` 호출이 전부 성공해야 Order가 생성되므로, **실패한 주문은 DB에 persist되지 않는다**. inventory `/reserve`는 단일 product 단위 API이고, 다중 item 주문의 분해·부분 실패 보상은 order-service Saga의 책임이다. 아래 의사 흐름의 `reservedItems`는 개념적 변수이며, **실제 구현에서는 보상 후보를 `pending_compensations.attempted_items_json`에 호출 직전 영속화**한다 (주요 crash 윈도우 방어 — 한계와 상세는 ADR-007).
+
+**입력 불변식**: 한 주문의 items[] 안에서 같은 productId가 중복으로 들어올 수 없다 (400 Bad Request). reservations 테이블의 `UNIQUE(order_id, product_id)` 멱등성 키와 충돌하므로 입력 검증 단계에서 거부. 동일 product 추가 주문은 별도 주문으로 분리해 호출.
+
+```
+[client] POST /api/v1/orders { items: [..N개..] }
+   ↓
+order-service: orderId(UUID) 생성, pending_compensations IN_PROGRESS row INSERT
+   ↓
+for i in 0..N-1:
+    attempted_items에 items[i] append (HTTP 호출 직전 commit)
+        ↓
+    inventory-service POST /api/v1/inventory/reserve  (sync HTTP, Feign + Resilience4j)
+        body: { productId: items[i].productId, quantity: items[i].quantity, orderId }
+        ↓
+    explicit 4xx → attempted_items에서 items[i] 제거 → fail-fast (분기로)
+    ambiguous 5xx/timeout → attempted_items 보존 → fail-fast (분기로)
+    성공 → 다음 i+1로
+   ↓ 전부 성공
+[단일 트랜잭션] Order INSERT (status=CONFIRMED) + pending_compensations.status=COMPLETED 커밋
+   ↓
+order.order-confirmed.v1 발행 (Kafka, fan-out)
+   ↓ (발행 성공/실패와 무관하게)
+[201 응답]
+
+분기:
+- 첫 호출 explicit 4xx                       → attempted empty → 보상 발행 안 함, 4xx 응답
+- i번째(i≥1) explicit 4xx                    → attempted(0..i-1)에 대해 inventory.release-requested.v1 발행, 4xx 응답
+- ambiguous (timeout / 5xx)                  → attempted(현재 item 포함)에 대해 idempotent release 보상 발행, 5xx 응답
+- reserve 전부 성공 후 Order persist 실패     → attempted 전체에 대해 보상 발행, 5xx 응답
+- Order persist 성공 후 confirmed 발행 실패   → 201 응답 (이미 COMPLETED 커밋), 로그/메트릭만 — 보상 복구 미트리거
+- ambiguous 후 reserve가 release보다 늦게 도착 → inventory가 tombstone INSERT 후 늦은 reserve를 AlreadyCompensated로 거부 (재고 leak 방지)
+```
+
+상세 정책 표는 [ADR-003 검증과 한계](docs/decisions/ADR-003-saga-coordination-and-communication.md) 참조. 동시성 모델은 [ADR-002](docs/decisions/ADR-002-concurrency-strategy.md), 보상 이벤트 손실 mitigation은 [ADR-007](docs/decisions/ADR-007-event-publishing-and-transactional-consistency.md).
+
+### 결정 로그 인덱스
+
+| ID | 제목 | 상태 |
+|---|---|---|
+| [ADR-001](docs/decisions/ADR-001-architecture-style.md) | 아키텍처 스타일 | 확정 |
+| [ADR-002](docs/decisions/ADR-002-concurrency-strategy.md) | 동시성 전략 | 확정 |
+| [ADR-003](docs/decisions/ADR-003-saga-coordination-and-communication.md) | Saga 조정 및 통신 모델 | 확정 |
+| [ADR-004](docs/decisions/ADR-004-resilience4j-tuning.md) | Resilience4j 수치 (서킷·타임아웃·재시도) | 잠정 (k6 실측 후 확정) |
+| [ADR-005](docs/decisions/ADR-005-kafka-topic-naming-and-schema-evolution.md) | Kafka 토픽 네이밍 및 스키마 진화 | 확정 |
+| [ADR-006](docs/decisions/ADR-006-kafka-runtime-strategy.md) | Kafka 실행 전략 | 확정 |
+| [ADR-007](docs/decisions/ADR-007-event-publishing-and-transactional-consistency.md) | 이벤트 발행과 트랜잭션 일관성 | 확정 |
+| [ADR-008](docs/decisions/ADR-008-test-strategy.md) | 테스트 전략 | 확정 |
+
+### 의도적으로 하지 않은 것
+
+본 과제의 핵심 영역(Saga 견고성·통신 설계·성능·테스트·문서) 외의 요소 중 의도적으로 채택하지 않은 결정들. 각 항목의 근거는 해당 ADR의 "검토한 대안" 또는 "한계" 절에 명시.
+
+> 본 섹션은 feature/01 시점의 skeleton이며, 이후 구현이 진행되며 신규 항목 발견 시 갱신된다.
+
+- **헥사고날 / Clean Architecture 풀스택**: outbound dependency inversion만 채택, inbound port·application service 분리는 미적용 ([ADR-001](docs/decisions/ADR-001-architecture-style.md)).
+- **낙관 락(`@Version`) / 비관 락(`SELECT FOR UPDATE`)**: lock-free atomic conditional UPDATE로 대체 ([ADR-002](docs/decisions/ADR-002-concurrency-strategy.md)).
+- **TCC (Try-Confirm-Cancel) 정식 채택**: 명시적 confirm 단계 없이 reservation 패턴 + 묵시적 확정으로 단순화 ([ADR-002](docs/decisions/ADR-002-concurrency-strategy.md)).
+- **inventory `/reserve`를 items[] all-or-nothing 단일 호출로 변경**: scaffold contract(단일 product API)와 Saga 보상 견고성 입증 표면을 보존하기 위해 미채택. order-service가 N번 호출·부분 보상 ([ADR-003](docs/decisions/ADR-003-saga-coordination-and-communication.md)).
+- **다중 item reserve의 parallel 호출**: latency 단축 가능하나 부분 성공 join·테스트 표면 비용. sequential fail-fast 채택 ([ADR-003](docs/decisions/ADR-003-saga-coordination-and-communication.md)).
+- **Outbox 패턴 풀스택 구현**: SQLite의 pub/sub 부재(LISTEN/NOTIFY 부재, JDBC update hook 미노출)로 robust 변형 차단. 보상 이벤트만 `pending_compensations` 영속화 + 부팅 시 재발행으로 부분 mitigation ([ADR-007](docs/decisions/ADR-007-event-publishing-and-transactional-consistency.md)).
+- **Debezium 기반 log-based CDC**: SQLite connector 미지원 ([ADR-007](docs/decisions/ADR-007-event-publishing-and-transactional-consistency.md)).
+- **Schema Registry (Avro/Protobuf)**: JSON 페이로드로 충분, registry 운영 비용이 본 과제 가치 회수 못함 ([ADR-005](docs/decisions/ADR-005-kafka-topic-naming-and-schema-evolution.md)).
+- **Forward 통신을 Kafka command/reply로 전환**: API 계약(`POST /orders → 201` 즉시 응답)과 충돌, Resilience4j 적용 표면 손실 ([ADR-003](docs/decisions/ADR-003-saga-coordination-and-communication.md)).
+- **다중 서비스 동시 기동 E2E 테스트**: 통합 테스트 + WireMock + Embedded Kafka로 검증 표면 충분 ([ADR-008](docs/decisions/ADR-008-test-strategy.md)).
+- **Mutation testing / coverage threshold 강제**: 메트릭이 테스트 품질의 직접 지표가 아니며 시간 가치 대비 ROI 낮음 ([ADR-008](docs/decisions/ADR-008-test-strategy.md)).
+- **Application/Domain Service 분리**: 본 과제에 multi-aggregate 조율 로직이 Saga 하나뿐이라 분리 비용이 가치 회수 못함 ([ADR-001](docs/decisions/ADR-001-architecture-style.md)).
 
 ---
 
