@@ -1,1 +1,17 @@
-/.claude
+# IntelliJ
+.idea/
+*.iml
+out/
+
+# Gradle
+.gradle/
+build/
+
+# Misc
+*.log
+.DS_Store
+
+# Databases
+*.db
+*.mv.db
+*.trace.db
