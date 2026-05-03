@@ -8,6 +8,12 @@ spring:
   datasource:
     url: jdbc:sqlite:./order-service.db
     driver-class-name: org.sqlite.JDBC
+    hikari:
+      # SQLite는 file-level write lock이라 다중 connection이 오히려 SQLITE_BUSY를 유발.
+      # pool-size=1로 application 단에서 직렬화 → BUSY 회피.
+      maximum-pool-size: 1
+      data-source-properties:
+        busy_timeout: 30000
 
   jpa:
     hibernate:

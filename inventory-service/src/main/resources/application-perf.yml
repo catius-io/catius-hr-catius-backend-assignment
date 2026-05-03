@@ -1,0 +1,18 @@
+# perf 프로파일 — k6 부하 시나리오 전용. 운영/테스트/기본 실행과 분리.
+# 활성: ./gradlew :inventory-service:bootRun --args='--spring.profiles.active=perf,fault-injection'
+
+spring:
+  sql:
+    init:
+      data-locations: classpath:data-perf.sql
+      mode: always
+
+# fault-injection 프로파일과 함께 활성 시 환경변수로 조정:
+#   FAULT_DELAY_MS=1500 FAULT_ERROR_RATE=0.3
+fault:
+  delay-ms: ${FAULT_DELAY_MS:0}
+  error-rate: ${FAULT_ERROR_RATE:0.0}
+
+logging:
+  level:
+    com.catius.inventory.perf: INFO

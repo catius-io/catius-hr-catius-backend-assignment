@@ -8,6 +8,10 @@ spring:
   datasource:
     url: jdbc:sqlite:./inventory-service.db
     driver-class-name: org.sqlite.JDBC
+    hikari:
+      maximum-pool-size: 1
+      data-source-properties:
+        busy_timeout: 30000
 
   jpa:
     hibernate:

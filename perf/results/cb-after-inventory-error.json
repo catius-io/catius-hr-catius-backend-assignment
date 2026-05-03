@@ -1,0 +1,1 @@
+{"circuitBreakers":{"inventoryClient":{"failureRate":"50.0%","slowCallRate":"0.0%","failureRateThreshold":"50.0%","slowCallRateThreshold":"50.0%","bufferedCalls":20,"failedCalls":10,"slowCalls":0,"slowFailedCalls":0,"notPermittedCalls":1522,"state":"OPEN"}}}

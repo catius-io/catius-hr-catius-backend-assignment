@@ -261,7 +261,7 @@ order.order-confirmed.v1 발행 (Kafka, fan-out)
 | [ADR-001](docs/decisions/ADR-001-architecture-style.md) | 아키텍처 스타일 | 확정 |
 | [ADR-002](docs/decisions/ADR-002-concurrency-strategy.md) | 동시성 전략 | 확정 |
 | [ADR-003](docs/decisions/ADR-003-saga-coordination-and-communication.md) | Saga 조정 및 통신 모델 | 확정 |
-| [ADR-004](docs/decisions/ADR-004-resilience4j-tuning.md) | Resilience4j 수치 (서킷·타임아웃·재시도) | 잠정 (k6 실측 후 확정) |
+| [ADR-004](docs/decisions/ADR-004-resilience4j-tuning.md) | Resilience4j 수치 (서킷·타임아웃·재시도) | 확정 |
 | [ADR-005](docs/decisions/ADR-005-kafka-topic-naming-and-schema-evolution.md) | Kafka 토픽 네이밍 및 스키마 진화 | 확정 |
 | [ADR-006](docs/decisions/ADR-006-kafka-runtime-strategy.md) | Kafka 실행 전략 | 확정 |
 | [ADR-007](docs/decisions/ADR-007-event-publishing-and-transactional-consistency.md) | 이벤트 발행과 트랜잭션 일관성 | 확정 |
