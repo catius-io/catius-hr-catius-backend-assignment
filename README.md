@@ -208,7 +208,39 @@ curl -i -X POST http://localhost:8082/api/v1/inventory/reserve \
 
 ## 설계 결정
 
-> 본 구현의 설계 결정과 트레이드오프는 [`docs/decisions/`](docs/decisions/) 디렉터리에 ADR(Architecture Decision Record) 형태로 기록되어 있다. 아래는 인덱스와 핵심 요약.
+> 본 구현의 설계 결정과 트레이드오프는 [`docs/decisions/`](docs/decisions/) 디렉터리에 ADR(Architecture Decision Record) 형태로 8건 기록되어 있다. HTTP API 계약은 [`docs/api/`](docs/api/), k6 실측 결과는 [`perf/results.md`](perf/results.md)에 분리되어 있다. 아래는 핵심 흐름·인덱스·트레이드오프 요약.
+
+### 핵심 흐름 (한눈에)
+
+```mermaid
+flowchart TD
+    A([Client]) -->|POST /api/v1/orders| B[order-service Saga 시작]
+    B --> C[(pending_compensations<br/>IN_PROGRESS INSERT)]
+    C --> D{각 item별<br/>inventory.reserve<br/>Feign + Resilience4j}
+    D -->|성공 → 다음 item| D
+    D -->|모두 성공| E[atomic 트랜잭션:<br/>Order INSERT CONFIRMED<br/>+ pending_compensations COMPLETED]
+    E -->|persist 성공| F[Kafka:<br/>order-confirmed.v1<br/>best-effort]
+    F --> G([201 Created])
+
+    D -->|explicit 4xx<br/>InsufficientStock 등| H{attempted<br/>비었나?}
+    D -->|ambiguous<br/>5xx · timeout · decode 실패| K[Kafka:<br/>release-requested.v1]
+    E -->|persist 실패| K
+    H -->|예 — 첫 호출 4xx| I([4xx<br/>보상 미발행])
+    H -->|아니오 — i번째 4xx| K
+    K --> L([4xx 또는 5xx])
+    K -.consume.-> M[inventory listener:<br/>Reservation.release<br/>or tombstone race 방어]
+
+    classDef ok fill:#d4edda,stroke:#2c7a3d,color:#000
+    classDef bad fill:#f8d7da,stroke:#a93226,color:#000
+    classDef tx fill:#fff3cd,stroke:#856404,color:#000
+    classDef store fill:#d1ecf1,stroke:#0c5460,color:#000
+    class G ok
+    class I,L bad
+    class E tx
+    class C store
+```
+
+분기별 상세 의사코드·에러 매핑은 ["핵심 흐름과 Order 상태"](#핵심-흐름과-order-상태) 절 + [ADR-003](docs/decisions/ADR-003-saga-coordination-and-communication.md) / [ADR-007](docs/decisions/ADR-007-event-publishing-and-transactional-consistency.md).
 
 ### 아키텍처 개요
 
@@ -271,20 +303,21 @@ order.order-confirmed.v1 발행 (Kafka, fan-out)
 
 본 과제의 핵심 영역(Saga 견고성·통신 설계·성능·테스트·문서) 외의 요소 중 의도적으로 채택하지 않은 결정들. 각 항목의 근거는 해당 ADR의 "검토한 대안" 또는 "한계" 절에 명시.
 
-> 본 섹션은 feature/01 시점의 skeleton이며, 이후 구현이 진행되며 신규 항목 발견 시 갱신된다.
-
 - **헥사고날 / Clean Architecture 풀스택**: outbound dependency inversion만 채택, inbound port·application service 분리는 미적용 ([ADR-001](docs/decisions/ADR-001-architecture-style.md)).
 - **낙관 락(`@Version`) / 비관 락(`SELECT FOR UPDATE`)**: lock-free atomic conditional UPDATE로 대체 ([ADR-002](docs/decisions/ADR-002-concurrency-strategy.md)).
 - **TCC (Try-Confirm-Cancel) 정식 채택**: 명시적 confirm 단계 없이 reservation 패턴 + 묵시적 확정으로 단순화 ([ADR-002](docs/decisions/ADR-002-concurrency-strategy.md)).
 - **inventory `/reserve`를 items[] all-or-nothing 단일 호출로 변경**: scaffold contract(단일 product API)와 Saga 보상 견고성 입증 표면을 보존하기 위해 미채택. order-service가 N번 호출·부분 보상 ([ADR-003](docs/decisions/ADR-003-saga-coordination-and-communication.md)).
 - **다중 item reserve의 parallel 호출**: latency 단축 가능하나 부분 성공 join·테스트 표면 비용. sequential fail-fast 채택 ([ADR-003](docs/decisions/ADR-003-saga-coordination-and-communication.md)).
-- **Outbox 패턴 풀스택 구현**: SQLite의 pub/sub 부재(LISTEN/NOTIFY 부재, JDBC update hook 미노출)로 robust 변형 차단. 보상 이벤트만 `pending_compensations` 영속화 + 부팅 시 재발행으로 부분 mitigation ([ADR-007](docs/decisions/ADR-007-event-publishing-and-transactional-consistency.md)).
+- **Outbox 패턴 풀스택 구현**: SQLite의 pub/sub 부재(LISTEN/NOTIFY 부재, JDBC update hook 미노출)로 robust 변형 차단. 보상 이벤트만 `pending_compensations` 영속화 + 부팅 시 재발행 + `@Scheduled` sweeper로 부분 mitigation ([ADR-007](docs/decisions/ADR-007-event-publishing-and-transactional-consistency.md)).
 - **Debezium 기반 log-based CDC**: SQLite connector 미지원 ([ADR-007](docs/decisions/ADR-007-event-publishing-and-transactional-consistency.md)).
 - **Schema Registry (Avro/Protobuf)**: JSON 페이로드로 충분, registry 운영 비용이 본 과제 가치 회수 못함 ([ADR-005](docs/decisions/ADR-005-kafka-topic-naming-and-schema-evolution.md)).
 - **Forward 통신을 Kafka command/reply로 전환**: API 계약(`POST /orders → 201` 즉시 응답)과 충돌, Resilience4j 적용 표면 손실 ([ADR-003](docs/decisions/ADR-003-saga-coordination-and-communication.md)).
 - **다중 서비스 동시 기동 E2E 테스트**: 통합 테스트 + WireMock + Embedded Kafka로 검증 표면 충분 ([ADR-008](docs/decisions/ADR-008-test-strategy.md)).
 - **Mutation testing / coverage threshold 강제**: 메트릭이 테스트 품질의 직접 지표가 아니며 시간 가치 대비 ROI 낮음 ([ADR-008](docs/decisions/ADR-008-test-strategy.md)).
 - **Application/Domain Service 분리**: 본 과제에 multi-aggregate 조율 로직이 Saga 하나뿐이라 분리 비용이 가치 회수 못함 ([ADR-001](docs/decisions/ADR-001-architecture-style.md)).
+- **Kafka DLQ (Dead Letter Topic)**: inventory listener는 예외 시 컨테이너 default retry-forever. 영구 실패 메시지 격리·운영자 inspection 표면은 production grade에서 도입 — 본 과제 범위 외 (`InventoryReleaseRequestedListener` 코드 코멘트 참조).
+- **다중 인스턴스에서 sweeper coordination**: `CompensationRecoveryRunner.scheduledSweep()`은 단일 인스턴스 가정. 다중 인스턴스 운영 시 leader election 또는 `pending_compensations` row-level 락이 필요 ([ADR-007](docs/decisions/ADR-007-event-publishing-and-transactional-consistency.md) 한계 절).
+- **GitHub Actions에 k6 smoke 통합**: Kafka·서비스 기동이 CI 런타임 비용으로 본 과제 가치 회수 못함. 단위·통합 빌드는 외부 의존 없이 통과 ([`perf/README.md`](perf/README.md) 보너스 항목).
 
 ---
 

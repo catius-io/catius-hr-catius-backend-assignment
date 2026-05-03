@@ -6,11 +6,11 @@
 ## 근거
 
 - **검증·차감 원자화**: "재고가 충분한가"라는 도메인 검증과 "차감"이라는 상태 변경이 한 SQL의 `WHERE quantity >= ?` 절 안에서 함께 일어남. 두 단계로 분리되어 있을 때 발생할 수 있는 race(검증 통과 후 다른 트랜잭션이 차감) 자체가 구조적으로 불가능.
-- **락 보유 시간 최소화**: row-level write lock이 UPDATE 실행 순간에만 holding. 비관 락은 트랜잭션 종료까지 holding하므로 처리량 측면에서 불리.
-- **데드락 가능성 0**: 락을 획득한 채 다른 락을 기다리는 구조가 없음. 비관 락은 다중 row 차감 시 락 순서 정렬 안 하면 데드락 위험.
+- **애플리케이션 레벨 락 보유 구간 부재**: row-level write lock 자체는 트랜잭션 commit까지 유지되지만, 검증과 차감이 한 SQL 문 안에서 끝나므로 **락을 잡은 뒤 애플리케이션 로직을 수행하는 구간이 없다**. 반면 비관 락은 SELECT FOR UPDATE → 비즈니스 로직 → UPDATE 패턴이라 락 보유 중 application code가 실행되어 처리량 손실 + DB connection 점유 시간 증가.
+- **데드락 회피 (단일 product API + 단일 row 차감 구조)**: inventory `/reserve`가 단일 product 단위 API이고 한 트랜잭션이 reservations INSERT + inventory UPDATE 두 row만 일관된 순서로 잠그므로, 본 설계 범위에서는 데드락이 발생하지 않는다. 다만 향후 multi-product UPDATE를 같은 트랜잭션에 묶는 변경이 들어오면 **product_id 오름차순 정렬**이 필수 — 트랜잭션 A가 product 1→2, 트랜잭션 B가 product 2→1 순으로 잠그면 DB 레벨 데드락 가능. 본 ADR은 단일 product 가정 하에서 데드락을 회피한다는 명시적 약속이며, 다중 product 트랜잭션 도입 시 이 ADR을 재검토.
 - **SQLite 포터빌리티**: 표준 SQL이라 dialect 모호성 없음. SQLite community dialect의 `LockModeType.PESSIMISTIC_WRITE` 매핑 동작을 실측·확신하지 않아도 됨.
 - **JPA 의존도 낮음**: `@Modifying` 쿼리 한 줄로 표현 가능. 트랜잭션 격리 수준 의존성이 없음(read-modify-write 패턴이 아니므로).
-- **`affected_rows == 0`을 도메인 시그널로**: 영향받은 row 수가 0이면 "재고 부족 또는 product 미존재"로 해석. 별도 검증 코드 불필요.
+- **`affected_rows == 0`을 도메인 시그널로**: 영향받은 row 수가 0이면 "재고 부족 또는 product 미존재"로 해석. 별도 검증 코드 불필요. **본 API는 두 사유를 의도적으로 동일 outcome(InsufficientStock)으로 묶는다** — Saga 보상 흐름에서 둘 다 "차감 없음 확정"으로 처리되기 때문이며, 구분이 필요한 새 API에서는 실패 후 별도 SELECT로 원인 분리가 필요.
 - **멱등성 책임 분리**: 동시성과 별개로, 같은 (orderId, productId) 조합으로 두 번 들어오는 reserve를 거부해야 하는데 이는 race 문제가 아닌 멱등성 문제. `reservations` 테이블의 `UNIQUE(order_id, product_id)` 복합 제약이 자연스럽게 처리. 다중 item 주문에서 동일 order의 서로 다른 product에 대한 reservation row는 정상적으로 생성되고, 같은 (order, product) 재호출만 차단됨.
 - **API 경계 = 단일 product**: inventory-service는 한 product에 대한 atomic UPDATE만 책임진다. order의 items[] 배열을 한 호출로 받아 트랜잭션으로 묶지 않는 이유는 (1) scaffold가 단일 product /reserve 컨트랙트를 명시(README "호출 예시" 절의 inventory 예시), (2) 부분 실패 보상이 Saga의 핵심 표면이라 order-service에서 통제하는 편이 보상 로직 견고성을 더 명확히 드러냄. 단일 product API + order-service의 분해/보상이 본 설계 의도에 정합.
 - **Tombstone으로 release-before-reserve race 차단**: ambiguous timeout 시 order-service는 보상 이벤트를 발행하는데, 원래 reserve HTTP 요청은 inventory에 늦게 도착할 수 있다(네트워크 지연 + Kafka 처리 우선). 이 race를 막기 위해 reserve·release 처리 순서를 못 박는다.
@@ -69,6 +69,14 @@ BEGIN TRANSACTION
   - `/confirm` 엔드포인트 + 두 단계 프로토콜 도입 비용. order-service Saga가 reserve → persist Order → confirm 의 3-step으로 늘어남.
   - 본 과제의 보상 시나리오는 "reserve 성공 후 Order persist 실패 → release"가 사실상 전부. 이 케이스에 명시적 confirm 단계가 추가 가치를 주지 않음.
   - 명시적 confirm 단계가 없는 reservation 패턴(reserve = 사실상 즉시 확정)도 TCC라고 칭할 수는 있으나 정확한 명명이 아님. 정직하게 "reservation pattern + lock-free 동시성 제어"로 명명.
+
+### Reservation 상태에 PENDING / SUCCEEDED / FAILED 도입
+- 검토 배경: 재시도 시 "reservation row는 있는데 실제 차감은 성공/실패 모호" 같은 ghost 상태 방지 목적.
+- 기각 사유 (본 설계가 이미 같은 보장을 다른 메커니즘으로 달성):
+  - **atomic 트랜잭션**: reservation INSERT와 inventory UPDATE가 같은 트랜잭션 내에서 commit/rollback. InsufficientStock 시 전체 rollback되어 reservation row가 남지 않음 → "차감은 실패했는데 reservation만 있는" 상태가 구조적으로 불가능.
+  - **`INSERT OR IGNORE` + UNIQUE(order_id, product_id)**: 동일 키 재시도 시 SQL 레벨에서 멱등 처리. 후속 충돌 검사로 기존 RESERVED를 idempotent 응답, RELEASED(tombstone)는 `AlreadyCompensated`로 분기.
+  - **RESERVED / RELEASED 두 상태**: tombstone 패턴으로 release-before-reserve race도 같이 커버 — PENDING 도입은 transition 매트릭스만 늘리고 부가 가치 없음.
+  - 정리: 본 ADR의 "reserve 처리 순서" pseudocode가 PENDING 상태 도입과 동등한 보장을 atomic transaction + INSERT OR IGNORE로 달성하므로 상태 enum을 늘리지 않는다.
 
 ## 검증과 한계
 
