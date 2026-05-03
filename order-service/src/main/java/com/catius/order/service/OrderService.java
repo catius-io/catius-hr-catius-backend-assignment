@@ -7,6 +7,7 @@ import com.catius.order.messaging.OrderConfirmedEvent;
 import com.catius.order.messaging.OrderEventPublishException;
 import com.catius.order.messaging.OrderEventPublisher;
 import com.catius.order.repository.OrderRepository;
+import com.catius.order.service.exception.OrderNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
@@ -49,6 +50,11 @@ public class OrderService {
     private final InventoryGateway inventoryGateway;
     private final OrderRepository orderRepository;
     private final OrderEventPublisher publisher;
+
+    public Order getOrder(Long id) {
+        return orderRepository.findById(id)
+                .orElseThrow(() -> new OrderNotFoundException(id));
+    }
 
     public Order createOrder(Long productId, int quantity) {
         // Step 1. reserve — 영구 실패는 여기서 throw, Order 생성 안 함.
