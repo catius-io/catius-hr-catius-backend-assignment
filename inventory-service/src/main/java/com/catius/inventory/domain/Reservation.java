@@ -7,8 +7,8 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -19,9 +19,10 @@ import java.util.Objects;
 @Entity
 @Table(
         name = "reservations",
-        uniqueConstraints = @UniqueConstraint(
+        indexes = @Index(
                 name = "uk_reservations_order_product",
-                columnNames = {"order_id", "product_id"}
+                columnList = "order_id, product_id",
+                unique = true
         )
 )
 @Getter

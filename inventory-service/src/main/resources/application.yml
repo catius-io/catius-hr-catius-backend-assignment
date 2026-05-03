@@ -12,12 +12,17 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
+    defer-datasource-initialization: true
     properties:
       hibernate:
         dialect: org.hibernate.community.dialect.SQLiteDialect
         format_sql: true
     show-sql: false
     open-in-view: false
+
+  sql:
+    init:
+      mode: always
 
   kafka:
     bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}

@@ -1,0 +1,20 @@
+spring:
+  datasource:
+    url: jdbc:sqlite:build/test-order-service.db
+    driver-class-name: org.sqlite.JDBC
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.community.dialect.SQLiteDialect
+    open-in-view: false
+
+  kafka:
+    listener:
+      auto-startup: false
+
+management:
+  endpoints:
+    enabled-by-default: false

@@ -1,0 +1,31 @@
+spring:
+  datasource:
+    url: jdbc:sqlite:build/test-inventory-service.db
+    driver-class-name: org.sqlite.JDBC
+    hikari:
+      maximum-pool-size: 10
+      data-source-properties:
+        busy_timeout: 30000
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    defer-datasource-initialization: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.community.dialect.SQLiteDialect
+        format_sql: true
+    show-sql: false
+    open-in-view: false
+
+  sql:
+    init:
+      mode: always
+
+  kafka:
+    listener:
+      auto-startup: false
+
+management:
+  endpoints:
+    enabled-by-default: false
