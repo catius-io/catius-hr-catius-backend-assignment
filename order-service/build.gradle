@@ -3,7 +3,8 @@
 // 이 모듈에서만 쓰는 의존성·설정이 필요하면 여기에 추가하세요.
 
 dependencies {
-    // 예) 이 서비스에서만 필요한 의존성이 생기면 여기에 추가
+    // WireMock — Feign + Resilience4j 통합 테스트에서 inventory-service contract를 흉내냄
+    testImplementation 'org.wiremock:wiremock-standalone:3.10.0'
 }
 
 bootJar {

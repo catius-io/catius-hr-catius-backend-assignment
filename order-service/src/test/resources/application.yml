@@ -15,6 +15,48 @@ spring:
     listener:
       auto-startup: false
 
+# WireMock 통합 테스트에서 @DynamicPropertySource로 덮어씀
+inventory:
+  base-url: http://localhost:0
+
+# Resilience4j 테스트용 축소 수치 — CB 전이를 빠르게 관찰하기 위함.
+# (ADR-004의 prod 수치는 main application.yml에)
+spring.cloud.openfeign.client.config:
+  inventoryClient:
+    connect-timeout: 500
+    read-timeout: 500
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      inventoryClient:
+        register-health-indicator: false
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 5
+        minimum-number-of-calls: 3
+        failure-rate-threshold: 50
+        slow-call-duration-threshold: 800ms
+        slow-call-rate-threshold: 100
+        wait-duration-in-open-state: 200ms
+        permitted-number-of-calls-in-half-open-state: 2
+        automatic-transition-from-open-to-half-open-enabled: true
+        ignore-exceptions:
+          - com.catius.order.service.exception.InsufficientStockException
+          - com.catius.order.service.exception.AlreadyCompensatedException
+          - com.catius.order.service.exception.ReservationConflictException
+          - com.catius.order.service.exception.ProductNotFoundException
+  retry:
+    instances:
+      inventoryClient:
+        max-attempts: 2
+        wait-duration: 50ms
+        ignore-exceptions:
+          - io.github.resilience4j.circuitbreaker.CallNotPermittedException
+          - com.catius.order.service.exception.InsufficientStockException
+          - com.catius.order.service.exception.AlreadyCompensatedException
+          - com.catius.order.service.exception.ReservationConflictException
+          - com.catius.order.service.exception.ProductNotFoundException
+
 management:
   endpoints:
     enabled-by-default: false

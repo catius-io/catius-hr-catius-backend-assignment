@@ -39,31 +39,51 @@ spring:
 inventory:
   base-url: ${INVENTORY_BASE_URL:http://localhost:8082}
 
-# Resilience4j 기본 예시 — 근거를 가지고 수치를 조정하고, 조정 이유를 README 에 기재하세요.
+# Feign 타임아웃 — ADR-004 잠정 수치 (k6 실측 후 확정)
+spring.cloud.openfeign.client.config:
+  inventoryClient:
+    connect-timeout: 500
+    read-timeout: 1000
+
+# Resilience4j 수치 — ADR-004 잠정. 명시적 도메인 4xx 예외는 ignore-exceptions로 CB·retry 모두에서 제외하여
+# "차감 없음 확정" 시그널이 일시적 장애와 섞이지 않도록 한다 (ADR-003 explicit vs ambiguous 분기).
 resilience4j:
   circuitbreaker:
     instances:
       inventoryClient:
         register-health-indicator: true
         sliding-window-type: COUNT_BASED
-        sliding-window-size: 10
-        minimum-number-of-calls: 5
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
         failure-rate-threshold: 50
-        wait-duration-in-open-state: 10s
+        slow-call-duration-threshold: 800ms
+        slow-call-rate-threshold: 50
+        wait-duration-in-open-state: 5s
         permitted-number-of-calls-in-half-open-state: 3
         automatic-transition-from-open-to-half-open-enabled: true
-  timelimiter:
-    instances:
-      inventoryClient:
-        timeout-duration: 2s
+        ignore-exceptions:
+          - com.catius.order.service.exception.InsufficientStockException
+          - com.catius.order.service.exception.AlreadyCompensatedException
+          - com.catius.order.service.exception.ReservationConflictException
+          - com.catius.order.service.exception.ProductNotFoundException
   retry:
     instances:
       inventoryClient:
-        max-attempts: 3
-        wait-duration: 500ms
-        retry-exceptions:
-          - java.io.IOException
-          - java.util.concurrent.TimeoutException
+        max-attempts: 2
+        wait-duration: 100ms
+        # ADR-004 — exponential ×2 + jitter. max-attempts=2에서는 실효 효과는 작지만
+        # 향후 max-attempts 상향 시 자동으로 의미를 가지도록 정렬.
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        enable-randomized-wait: true
+        randomized-wait-factor: 0.5
+        ignore-exceptions:
+          # CB가 OPEN일 때 던지는 CNPE는 retry 무의미 — 즉시 fast-fail
+          - io.github.resilience4j.circuitbreaker.CallNotPermittedException
+          - com.catius.order.service.exception.InsufficientStockException
+          - com.catius.order.service.exception.AlreadyCompensatedException
+          - com.catius.order.service.exception.ReservationConflictException
+          - com.catius.order.service.exception.ProductNotFoundException
 
 # Kafka 토픽 — 지원자가 정한 네이밍 규칙으로 조정
 catius:
