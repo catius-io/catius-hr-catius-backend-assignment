@@ -1,1 +1,26 @@
 /.claude
+
+# Gradle
+.gradle/
+build/
+
+# IntelliJ / Eclipse
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+bin/
+
+# OS
+.DS_Store
+
+# SQLite runtime files
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# Logs
+*.log
