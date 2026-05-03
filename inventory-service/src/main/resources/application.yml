@@ -33,11 +33,20 @@ spring:
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
         spring.json.trusted.packages: "*"
+        # order-service가 보낸 type header(다른 패키지 fqn)를 무시하고 본 서비스의 클래스로 역직렬화.
+        spring.json.use.type.headers: false
+        spring.json.value.default.type: com.catius.inventory.service.event.InventoryReleaseRequestedEvent
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
     listener:
       auto-startup: true
+
+# Kafka 토픽 (ADR-005)
+catius:
+  kafka:
+    topics:
+      inventory-release-requested: inventory.release-requested.v1
 
 management:
   endpoints:

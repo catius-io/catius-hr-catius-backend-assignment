@@ -41,8 +41,11 @@ public class Order {
 
     private Instant createdAt;
 
-    public static Order confirmed(String orderId, long customerId, List<OrderItem> items) {
-        Objects.requireNonNull(orderId, "orderId");
+    /**
+     * Order 생성에 필요한 입력 불변식만 검증 — Saga 시작 전 service 경계에서 재사용 가능.
+     * orderId 검사는 Saga 내부 책임이므로 본 메서드는 customerId / items만 본다.
+     */
+    public static void validateOrderInput(long customerId, List<OrderItem> items) {
         Objects.requireNonNull(items, "items");
         if (customerId <= 0) {
             throw new IllegalArgumentException("customerId must be positive: " + customerId);
@@ -57,6 +60,11 @@ public class Order {
                 throw new IllegalArgumentException("duplicate productId: " + item.getProductId());
             }
         }
+    }
+
+    public static Order confirmed(String orderId, long customerId, List<OrderItem> items) {
+        Objects.requireNonNull(orderId, "orderId");
+        validateOrderInput(customerId, items);
 
         Order order = new Order();
         order.orderId = orderId;

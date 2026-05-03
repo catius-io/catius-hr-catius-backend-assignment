@@ -31,6 +31,10 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      # ADR-007 — at-least-once delivery 강화: idempotent + acks=all + 자동 retry.
+      acks: all
+      properties:
+        enable.idempotence: true
     listener:
       # 로컬 전체 기동 시 외부 Kafka 가 없다면 `false` 로 두고, 테스트에서만 Embedded Kafka 로 검증하는 것도 한 방법입니다.
       auto-startup: true
@@ -85,11 +89,13 @@ resilience4j:
           - com.catius.order.service.exception.ReservationConflictException
           - com.catius.order.service.exception.ProductNotFoundException
 
-# Kafka 토픽 — 지원자가 정한 네이밍 규칙으로 조정
+# Kafka 토픽 (ADR-005 — `{domain}.{event-name}.{version}` 네이밍).
 catius:
   kafka:
     topics:
       order-confirmed: order.order-confirmed.v1
+      inventory-release-requested: inventory.release-requested.v1
+    publish-timeout-seconds: 5
 
 management:
   endpoints:

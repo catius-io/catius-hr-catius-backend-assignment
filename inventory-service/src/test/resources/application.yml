@@ -25,6 +25,24 @@ spring:
   kafka:
     listener:
       auto-startup: false
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: inventory-service
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+        spring.json.use.type.headers: false
+        spring.json.value.default.type: com.catius.inventory.service.event.InventoryReleaseRequestedEvent
+
+# Kafka 토픽 (main과 동일 — test config은 main을 inherit하지 않음)
+catius:
+  kafka:
+    topics:
+      inventory-release-requested: inventory.release-requested.v1
 
 management:
   endpoints:

@@ -75,7 +75,10 @@ forward 알고리즘(ADR-003)의 각 분기마다 **order-service의 별도 loca
 ### 채택하지 않은 더 강한 mitigation
 
 - **outbox 패턴 풀스택 도입**: SQLite 환경에서 polling outbox만 가능하고 ROI 부족 (위 "근거" 절 참조). `pending_compensations`가 사실상 boundary 제한 polling outbox로, 보상 토픽 한 곳에만 적용해 표면을 제한.
-- **백그라운드 sweeper (`@Scheduled` 30s)**: 재시도 latency를 줄일 수 있으나 본 과제 범위에서는 부팅 시 재시도로 충분. 운영 환경 전환 시 추가 검토.
+
+### 추가로 적용한 mitigation (구현됨)
+
+- **백그라운드 sweeper (`@Scheduled`)**: 부팅 시 회복만으로는 앱 재시작 없이 Kafka가 복구되는 운영 시나리오에서 `DISPATCH_FAILED` row가 다음 재기동까지 남는 한계가 있음 → `CompensationRecoveryRunner.scheduledSweep()`을 30초 주기(`order.compensation.sweeper-interval-ms` 조정)로 추가. `recover()` 메서드는 ApplicationRunner와 동일 코드를 공유.
 
 > **남는 윈도우**: (a) 첫 IN_PROGRESS INSERT 자체가 실패하는 경우 — reserve가 아직 시작 안 됐으므로 재고 leak 없음. (b) Kafka 발행 자체의 catastrophic 실패 — KafkaTemplate retries로 대다수 transient 실패 회복. (c) 이론적으로 attempted_items append commit ↔ HTTP 호출 시작 사이의 매우 좁은 윈도우 — commit이 먼저이므로 이 윈도우에서 crash 시 attempted에 item이 있고 실제 차감은 없음 → recovery에서 release 발행되어도 멱등 no-op. 결론: 다중 item 부분 성공 시나리오의 재고 leak 위험은 본 mitigation으로 운영 수준에 근접하게 닫힘. catastrophic Kafka 실패만 outbox 풀스택이 아닌 한 미보장.
 
@@ -117,12 +120,13 @@ forward 알고리즘(ADR-003)의 각 분기마다 **order-service의 별도 loca
 ## 검증과 한계
 
 - **검증**:
-  - 통합 테스트에서 KafkaTemplate의 producer retries(`acks=all`, `enable.idempotence=true`) 설정이 적용되어 일시적 발행 실패 시 자동 재시도되는지 확인.
-  - 컨슈머 측 멱등 검증: 동일 `eventId` 헤더를 가진 메시지 두 번 수신 시 한 번만 효과 적용되는지 확인 (테스트용 컨슈머 스텁).
+  - KafkaTemplate producer 설정(`acks=all`, `enable.idempotence=true`)이 application.yml에 적용된 상태로 정의 — 일시적 발행 실패 시 broker가 producer-level retry로 흡수. 본 과제 범위에서 broker 장애 주입까지는 수행하지 않음.
+  - 컨슈머 측 멱등 검증: 동일 `(orderId, productId)` 키로 release 이벤트가 두 번 도착해도 한 번만 효과 적용 — `Reservation.release()`의 RELEASED 재호출 no-op과 reservations UNIQUE 제약이 받쳐줌. inventory listener 통합 테스트에서 reserve→release→release 시나리오로 커버.
   - **pending_compensations 라이프사이클**: 다중 item 부분 실패 시 IN_PROGRESS → attempted_items 점진 append → 분류(explicit 시 제거 / ambiguous 시 보존) → READY_TO_PUBLISH → PUBLISHED 전이 검증. 발행 단계 강제 실패 시 DISPATCH_FAILED 전이 + 메트릭 증가 + 재기동 후 자동 재발행 검증.
   - **reserve 중 crash 회복**: HTTP 호출 직전 attempted_items append → 응답 전 강제 다운 → 재기동 시 IN_PROGRESS row + attempted_items 발견 → CRASH_RECOVERY로 표시 후 보상 발행. release가 (실제 차감 안 된 item에 대해) no-op로 처리되는지 확인.
   - **명시적 4xx에서 attempted_items 제거 검증**: i번째에서 explicit 4xx → items[i]가 attempted_items에서 제거됨 → 보상에 포함되지 않음.
   - **confirmed 발행 실패 시 보상 복구 미트리거**: Order persist 성공 후 KafkaTemplate에 confirmed 발행 강제 실패 주입 → 사용자 응답 201 + Order CONFIRMED 상태 persist 확인 + `pending_compensations.status=COMPLETED` 확인 + 컨텍스트 재기동 후 복구 스캔이 이 row를 건드리지 않음 (release 미발행) 확인. **이 케이스가 핵심 race를 막는지 회귀 테스트로 보존**.
+  - **메트릭 증가**: confirmed/compensation 발행 실패 시 각각 `order.saga.confirmed_dispatch_failed`, `order.saga.compensation_dispatch_failed` Micrometer 카운터 증가. 통합 테스트에서 발행 실패 주입 후 카운터 증가 검증.
 - **한계 (의도적으로 수용한 트레이드오프)**:
   - **첫 IN_PROGRESS INSERT 실패 윈도우**: 이 시점에는 reserve 호출이 시작되지 않아 재고 차감이 없으므로 재고 leak invariant 유지. 다만 사용자 응답이 5xx로 끊기는 점은 보장 안 됨.
   - **Fan-out 이벤트(`order.order-confirmed.v1`)는 mitigation 없음**: 본 과제 컨슈머 부재라 회귀 표면 0. 발행 실패 시 사용자 응답은 201 그대로 (위 정책 절). 운영 환경에서 컨슈머가 추가되면 비용 분석 후 outbox 도입 필요.
