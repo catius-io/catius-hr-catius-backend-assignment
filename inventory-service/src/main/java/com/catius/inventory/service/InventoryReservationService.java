@@ -1,11 +1,13 @@
 package com.catius.inventory.service;
 
+import com.catius.inventory.domain.Inventory;
 import com.catius.inventory.domain.Reservation;
 import com.catius.inventory.domain.ReservationState;
 import com.catius.inventory.repository.InventoryRepository;
 import com.catius.inventory.repository.ReservationRepository;
 import com.catius.inventory.service.exception.AlreadyCompensatedException;
 import com.catius.inventory.service.exception.InsufficientStockException;
+import com.catius.inventory.service.exception.ProductNotFoundException;
 import com.catius.inventory.service.exception.ReservationConflictException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -25,6 +27,15 @@ public class InventoryReservationService {
 
     private final ReservationRepository reservationRepository;
     private final InventoryRepository inventoryRepository;
+
+    @Transactional(readOnly = true)
+    public Inventory getInventory(long productId) {
+        if (productId <= 0) {
+            throw new IllegalArgumentException("productId must be positive: " + productId);
+        }
+        return inventoryRepository.findById(productId)
+                .orElseThrow(() -> new ProductNotFoundException(productId));
+    }
 
     @Transactional
     public Reservation reserve(String orderId, long productId, int quantity) {
