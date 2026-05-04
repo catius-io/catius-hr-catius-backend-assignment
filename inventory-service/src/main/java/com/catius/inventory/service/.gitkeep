@@ -1,9 +1,0 @@
-# service 패키지
-#
-# 비즈니스 로직을 담당합니다.
-#
-# 포함될 수 있는 예시:
-# - InventoryService — 재고 조회·차감·복원, 동시성 제어
-# - (선택) OrderConfirmedEventListener — order-service 의 이벤트 구독 후처리
-#
-# 이 .gitkeep 파일은 구현을 시작하면 삭제해도 됩니다.

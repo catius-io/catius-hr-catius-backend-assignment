@@ -1,9 +1,0 @@
-# domain 패키지
-#
-# 엔티티·값 객체·도메인 예외.
-#
-# 예시:
-# - Inventory 엔티티 (productId, stockQuantity, version ...)
-# - 도메인 예외 (InsufficientStockException 등)
-#
-# 이 .gitkeep 파일은 구현을 시작하면 삭제해도 됩니다.
