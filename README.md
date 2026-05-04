@@ -317,7 +317,7 @@ order.order-confirmed.v1 발행 (Kafka, fan-out)
 - **Application/Domain Service 분리**: 본 과제에 multi-aggregate 조율 로직이 Saga 하나뿐이라 분리 비용이 가치 회수 못함 ([ADR-001](docs/decisions/ADR-001-architecture-style.md)).
 - **Kafka DLQ (Dead Letter Topic)**: inventory listener는 예외 시 컨테이너 default retry-forever. 영구 실패 메시지 격리·운영자 inspection 표면은 production grade에서 도입 — 본 과제 범위 외 (`InventoryReleaseRequestedListener` 코드 코멘트 참조).
 - **다중 인스턴스에서 sweeper coordination**: `CompensationRecoveryRunner.scheduledSweep()`은 단일 인스턴스 가정. 다중 인스턴스 운영 시 leader election 또는 `pending_compensations` row-level 락이 필요 ([ADR-007](docs/decisions/ADR-007-event-publishing-and-transactional-consistency.md) 한계 절).
-- **GitHub Actions에 k6 smoke 통합**: Kafka·서비스 기동이 CI 런타임 비용으로 본 과제 가치 회수 못함. 단위·통합 빌드는 외부 의존 없이 통과 ([`perf/README.md`](perf/README.md) 보너스 항목).
+- **GitHub Actions에 k6 smoke 통합**: 기본 CI(`./gradlew build` — 단위·통합 테스트, Embedded Kafka로 외부 의존 0)는 [`.github/workflows/ci.yml`](.github/workflows/ci.yml)로 채택. k6 smoke는 Kafka·서비스 기동이 CI 런타임 비용으로 본 과제 가치 회수 못함 ([`perf/README.md`](perf/README.md) 보너스 항목).
 
 ---
 
