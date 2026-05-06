@@ -1,5 +1,6 @@
 package com.catius.inventory.domain;
 
+import com.catius.inventory.exception.InsufficientStockException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -41,8 +42,8 @@ class InventoryTest {
     @DisplayName("재고 차감 - 재고 부족 시 예외 발생")
     void deduct_재고부족_예외() {
         assertThatThrownBy(() -> inventory.deduct(11))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("재고 부족");
+                .isInstanceOf(InsufficientStockException.class)
+                .hasMessageContaining("Insufficient stock");
     }
 
     @Test

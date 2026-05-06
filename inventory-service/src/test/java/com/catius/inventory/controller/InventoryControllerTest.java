@@ -2,6 +2,7 @@ package com.catius.inventory.controller;
 
 import com.catius.inventory.controller.dto.request.InventoryRequest;
 import com.catius.inventory.controller.dto.response.InventoryResponse;
+import com.catius.inventory.exception.InsufficientStockException;
 import com.catius.inventory.exception.StockNotFoundException;
 import com.catius.inventory.service.InventoryService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -72,6 +73,21 @@ class InventoryControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.productId").value("PRODUCT-001"))
                 .andExpect(jsonPath("$.quantity").value(0));
+    }
+
+    @Test
+    @DisplayName("재고 예약 - 재고 부족 → 409")
+    void reserve_409() throws Exception {
+        given(inventoryService.reserve(any()))
+                .willThrow(new InsufficientStockException("PRODUCT-001", 3, 10));
+
+        mockMvc.perform(post("/api/v1/inventory/reserve")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new InventoryRequest("PRODUCT-001", 10))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("INSUFFICIENT_STOCK"))
+                .andExpect(jsonPath("$.message").value("Insufficient stock: productId=PRODUCT-001, current=3, requested=10"))
+                .andExpect(jsonPath("$.path").value("/api/v1/inventory/reserve"));
     }
 
     @Test

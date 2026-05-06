@@ -3,6 +3,7 @@ package com.catius.inventory.service;
 import com.catius.inventory.controller.dto.request.InventoryRequest;
 import com.catius.inventory.controller.dto.response.InventoryResponse;
 import com.catius.inventory.domain.Inventory;
+import com.catius.inventory.exception.InsufficientStockException;
 import com.catius.inventory.exception.StockNotFoundException;
 import com.catius.inventory.repository.InventoryRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -77,8 +78,8 @@ class InventoryServiceTest {
                 .willReturn(Optional.of(createInventory("PRODUCT-001", "테스트 상품", 3)));
 
         assertThatThrownBy(() -> inventoryService.reserve(new InventoryRequest("PRODUCT-001", 5)))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("재고 부족");
+                .isInstanceOf(InsufficientStockException.class)
+                .hasMessageContaining("Insufficient stock");
     }
 
     @Test
