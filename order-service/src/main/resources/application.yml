@@ -6,7 +6,7 @@ spring:
     name: order-service
 
   datasource:
-    url: jdbc:sqlite:./order-service.?journal_mode=WAL&busy_timeout=10000
+    url: jdbc:sqlite:./order-service.db?journal_mode=WAL&busy_timeout=10000
     driver-class-name: org.sqlite.JDBC
     hikari:
       maximum-pool-size: 1
