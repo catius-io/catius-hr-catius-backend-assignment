@@ -12,7 +12,7 @@
  *   - Saga 정상 종료율 > 90% (CONFIRMED 또는 CANCELLED)
  *
  * Request  POST /api/v1/orders
- *   { customerId: Long, items: [{ productId: String, quantity: int }] }
+ *   { customerId: Long, items: [{ productId: Long, quantity: int }] }
  * Response 201 Created → List<OrderResponse>
  */
 
@@ -26,7 +26,7 @@ const sagaSuccessRate = new Rate('saga_success_rate');
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8081';
 const INV_URL  = __ENV.INV_URL  || 'http://localhost:8082';
 
-const PRODUCT_IDS  = ['PRODUCT-001', 'PRODUCT-002', 'PRODUCT-003', 'PRODUCT-004', 'PRODUCT-005'];
+const PRODUCT_IDS  = [1001, 1002, 1003, 1004, 1005];
 const CUSTOMER_IDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
 // ── SLO thresholds ────────────────────────────────────────────────────────────
