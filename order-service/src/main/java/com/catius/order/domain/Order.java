@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 
 @Entity
@@ -23,9 +24,9 @@ public class Order {
 
     private Long customerId;
 
-    private Long productId;
-
-    private int quantity;
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @JoinColumn(name = "order_id")
+    private List<OrderItem> items;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -37,11 +38,10 @@ public class Order {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
-    public static Order create(Long customerId, Long productId, int quantity) {
+    public static Order create(Long customerId, List<OrderItem> items) {
         return Order.builder()
                 .customerId(customerId)
-                .productId(productId)
-                .quantity(quantity)
+                .items(items)
                 .status(OrderStatus.PENDING)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())

@@ -4,6 +4,7 @@ import com.catius.order.client.InventoryClientFacade;
 import com.catius.order.client.dto.request.InventoryRequest;
 import com.catius.order.client.dto.response.InventoryResponse;
 import com.catius.order.domain.Order;
+import com.catius.order.domain.OrderItem;
 import com.catius.order.domain.OrderStatus;
 import com.catius.order.event.OrderConfirmedEvent;
 import com.catius.order.event.OrderSagaOrchestrator;
@@ -22,6 +23,7 @@ import org.springframework.kafka.test.EmbeddedKafkaBroker;
 import org.springframework.kafka.test.context.EmbeddedKafka;
 import org.springframework.kafka.test.utils.KafkaTestUtils;
 
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -64,7 +66,7 @@ class OrderSagaIntegrationTest {
         given(inventoryClientFacade.reserve(any(InventoryRequest.class)))
                 .willReturn(new InventoryResponse(1001L, "테스트 상품", 8));
 
-        Order order = orderRepository.save(Order.create(1L, 1001L, 2));
+        Order order = orderRepository.save(Order.create(1L, List.of(OrderItem.of(1001L, 2))));
 
         try (Consumer<String, OrderConfirmedEvent> consumer = createConsumer()) {
             embeddedKafkaBroker.consumeFromAnEmbeddedTopic(consumer, TOPIC);
@@ -80,8 +82,10 @@ class OrderSagaIntegrationTest {
             assertThat(savedOrder.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
             assertThat(record.key()).isEqualTo(order.getId().toString());
             assertThat(event.getOrderId()).isEqualTo(order.getId());
-            assertThat(event.getProductId()).isEqualTo(1001L);
-            assertThat(event.getQuantity()).isEqualTo(2);
+            assertThat(event.getCustomerId()).isEqualTo(1L);
+            assertThat(event.getItems()).hasSize(1);
+            assertThat(event.getItems().get(0).getProductId()).isEqualTo(1001L);
+            assertThat(event.getItems().get(0).getQuantity()).isEqualTo(2);
             assertThat(event.getStatus()).isEqualTo(OrderStatus.CONFIRMED.name());
             assertThat(event.getTimestamp()).isNotNull();
 

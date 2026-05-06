@@ -4,6 +4,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.*;
 
 class OrderTest {
@@ -12,14 +14,15 @@ class OrderTest {
 
     @BeforeEach
     void setUp() {
-        order = Order.create(1L, 1001L, 3);
+        order = Order.create(1L, List.of(OrderItem.of(1001L, 3)));
     }
 
     @Test
-    @DisplayName("주문 생성 - 초기 상태는 PENDING")
+    @DisplayName("주문 생성 - 초기 상태는 PENDING, 아이템 포함")
     void create_초기상태_PENDING() {
-        assertThat(order.getProductId()).isEqualTo(1001L);
-        assertThat(order.getQuantity()).isEqualTo(3);
+        assertThat(order.getItems()).hasSize(1);
+        assertThat(order.getItems().get(0).getProductId()).isEqualTo(1001L);
+        assertThat(order.getItems().get(0).getQuantity()).isEqualTo(3);
         assertThat(order.getStatus()).isEqualTo(OrderStatus.PENDING);
     }
 

@@ -3,6 +3,7 @@ package com.catius.order.service;
 import com.catius.order.controller.dto.request.OrderRequest;
 import com.catius.order.controller.dto.response.OrderResponse;
 import com.catius.order.domain.Order;
+import com.catius.order.domain.OrderItem;
 import com.catius.order.event.OrderSagaOrchestrator;
 import com.catius.order.exception.OrderNotFoundException;
 import com.catius.order.repository.OrderRepository;
@@ -19,16 +20,13 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final OrderSagaOrchestrator orderSagaOrchestrator;
 
-    public List<OrderResponse> createOrder(OrderRequest request) {
-        return request.items().stream()
-                .map(item -> {
-                    Order order = orderRepository.save(
-                            Order.create(request.customerId(), item.productId(), item.quantity())
-                    );
-                    orderSagaOrchestrator.execute(order);
-                    return OrderResponse.from(order);
-                })
+    public OrderResponse createOrder(OrderRequest request) {
+        List<OrderItem> items = request.items().stream()
+                .map(item -> OrderItem.of(item.productId(), item.quantity()))
                 .toList();
+        Order order = orderRepository.save(Order.create(request.customerId(), items));
+        orderSagaOrchestrator.execute(order);
+        return OrderResponse.from(order);
     }
 
     @Transactional(readOnly = true)

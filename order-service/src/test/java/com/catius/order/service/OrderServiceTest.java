@@ -4,6 +4,7 @@ import com.catius.order.controller.dto.request.OrderItemRequest;
 import com.catius.order.controller.dto.request.OrderRequest;
 import com.catius.order.controller.dto.response.OrderResponse;
 import com.catius.order.domain.Order;
+import com.catius.order.domain.OrderItem;
 import com.catius.order.domain.OrderStatus;
 import com.catius.order.event.OrderSagaOrchestrator;
 import com.catius.order.exception.OrderNotFoundException;
@@ -46,25 +47,25 @@ class OrderServiceTest {
         willDoNothing().given(orderSagaOrchestrator).execute(any(Order.class));
 
         OrderRequest request = new OrderRequest(1L, List.of(new OrderItemRequest(1001L, 2)));
-        List<OrderResponse> responses = orderService.createOrder(request);
+        OrderResponse response = orderService.createOrder(request);
 
-        assertThat(responses).hasSize(1);
-        assertThat(responses.get(0).id()).isEqualTo(1L);
-        assertThat(responses.get(0).productId()).isEqualTo(1001L);
-        assertThat(responses.get(0).quantity()).isEqualTo(2);
-        assertThat(responses.get(0).status()).isEqualTo(OrderStatus.PENDING);
+        assertThat(response.id()).isEqualTo(1L);
+        assertThat(response.items()).hasSize(1);
+        assertThat(response.items().get(0).productId()).isEqualTo(1001L);
+        assertThat(response.items().get(0).quantity()).isEqualTo(2);
+        assertThat(response.status()).isEqualTo(OrderStatus.PENDING);
         then(orderSagaOrchestrator).should().execute(any(Order.class));
     }
 
     @Test
     @DisplayName("주문 조회 - 성공")
     void findById_성공() {
-        Order order = Order.create(1L, 1001L, 2);
+        Order order = Order.create(1L, List.of(OrderItem.of(1001L, 2)));
         given(orderRepository.findById(1L)).willReturn(Optional.of(order));
 
         OrderResponse response = orderService.findById(1L);
 
-        assertThat(response.productId()).isEqualTo(1001L);
+        assertThat(response.items().get(0).productId()).isEqualTo(1001L);
         assertThat(response.status()).isEqualTo(OrderStatus.PENDING);
     }
 

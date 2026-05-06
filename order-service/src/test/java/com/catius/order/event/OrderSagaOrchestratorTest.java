@@ -4,6 +4,7 @@ import com.catius.order.client.InventoryClientFacade;
 import com.catius.order.client.dto.request.InventoryRequest;
 import com.catius.order.client.dto.response.InventoryResponse;
 import com.catius.order.domain.Order;
+import com.catius.order.domain.OrderItem;
 import com.catius.order.domain.OrderStatus;
 import com.catius.order.exception.KafkaPublishException;
 import com.catius.order.repository.OrderRepository;
@@ -15,6 +16,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.CannotAcquireLockException;
+
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -40,7 +43,7 @@ class OrderSagaOrchestratorTest {
 
     @BeforeEach
     void setUp() {
-        order = Order.create(1L, 1001L, 2);
+        order = Order.create(1L, List.of(OrderItem.of(1001L, 2)));
     }
 
     // ── 정상 흐름 ─────────────────────────────────────────────────

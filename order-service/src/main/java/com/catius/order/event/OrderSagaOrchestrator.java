@@ -3,11 +3,15 @@ package com.catius.order.event;
 import com.catius.order.client.InventoryClientFacade;
 import com.catius.order.client.dto.request.InventoryRequest;
 import com.catius.order.domain.Order;
+import com.catius.order.domain.OrderItem;
 import com.catius.order.exception.KafkaPublishException;
 import com.catius.order.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Slf4j
 @Service
@@ -19,13 +23,15 @@ public class OrderSagaOrchestrator {
     private final OrderRepository orderRepository;
 
     public void execute(Order order) {
-        boolean reserved = false;
+        List<OrderItem> reservedItems = new ArrayList<>();
 
         try {
-            log.info("[재고 차감] orderId={} productId={}, qty={}",
-                    order.getId(), order.getProductId(), order.getQuantity());
-            inventoryClientFacade.reserve(new InventoryRequest(order.getProductId(), order.getQuantity()));
-            reserved = true;
+            for (OrderItem item : order.getItems()) {
+                log.info("[재고 차감] orderId={} productId={}, qty={}",
+                        order.getId(), item.getProductId(), item.getQuantity());
+                inventoryClientFacade.reserve(new InventoryRequest(item.getProductId(), item.getQuantity()));
+                reservedItems.add(item);
+            }
 
             log.info("[주문 확인] orderId={}", order.getId());
             order.confirm();
@@ -34,8 +40,10 @@ public class OrderSagaOrchestrator {
             log.info("[주문 이벤트 발행] orderId={}", order.getId());
             orderEventPublisher.publishOrderConfirmed(new OrderConfirmedEvent(
                     order.getId(),
-                    order.getProductId(),
-                    order.getQuantity(),
+                    order.getCustomerId(),
+                    order.getItems().stream()
+                            .map(i -> new OrderConfirmedEvent.OrderItemEvent(i.getProductId(), i.getQuantity()))
+                            .toList(),
                     order.getStatus().name(),
                     System.currentTimeMillis()
             ));
@@ -50,13 +58,13 @@ public class OrderSagaOrchestrator {
             order.cancel();
             orderRepository.save(order);
 
-            if (reserved) {
+            for (OrderItem item : reservedItems) {
                 try {
-                    inventoryClientFacade.release(new InventoryRequest(order.getProductId(), order.getQuantity()));
-                    log.info("[재고 복구 완료] orderId={}", order.getId());
+                    inventoryClientFacade.release(new InventoryRequest(item.getProductId(), item.getQuantity()));
+                    log.info("[재고 복구 완료] orderId={} productId={}", order.getId(), item.getProductId());
                 } catch (Exception releaseEx) {
-                    log.error("[재고 복구 실패] orderId={} — 수동 복구 필요, cause={}",
-                            order.getId(), releaseEx.getMessage());
+                    log.error("[재고 복구 실패] orderId={} productId={} — 수동 복구 필요, cause={}",
+                            order.getId(), item.getProductId(), releaseEx.getMessage());
                 }
             }
         }

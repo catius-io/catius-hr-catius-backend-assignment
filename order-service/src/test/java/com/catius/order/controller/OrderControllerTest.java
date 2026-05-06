@@ -2,6 +2,7 @@ package com.catius.order.controller;
 
 import com.catius.order.controller.dto.request.OrderItemRequest;
 import com.catius.order.controller.dto.request.OrderRequest;
+import com.catius.order.controller.dto.response.OrderItemResponse;
 import com.catius.order.controller.dto.response.OrderResponse;
 import com.catius.order.domain.OrderStatus;
 import com.catius.order.exception.OrderNotFoundException;
@@ -39,7 +40,8 @@ class OrderControllerTest {
     @DisplayName("주문 생성 - 201 Created")
     void createOrder_201() throws Exception {
         given(orderService.createOrder(any()))
-                .willReturn(List.of(new OrderResponse(1L, 1L, 1001L, 2, OrderStatus.PENDING, LocalDateTime.now())));
+                .willReturn(new OrderResponse(1L, 1L, OrderStatus.PENDING, LocalDateTime.now(),
+                        List.of(new OrderItemResponse(1001L, 2))));
 
         OrderRequest request = new OrderRequest(1L, List.of(new OrderItemRequest(1001L, 2)));
 
@@ -47,16 +49,17 @@ class OrderControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$[0].productId").value(1001))
-                .andExpect(jsonPath("$[0].quantity").value(2))
-                .andExpect(jsonPath("$[0].status").value("PENDING"));
+                .andExpect(jsonPath("$.items[0].productId").value(1001))
+                .andExpect(jsonPath("$.items[0].quantity").value(2))
+                .andExpect(jsonPath("$.status").value("PENDING"));
     }
 
     @Test
     @DisplayName("주문 조회 - 200 OK")
     void getOrder_200() throws Exception {
         given(orderService.findById(1L))
-                .willReturn(new OrderResponse(1L, 1L, 1001L, 2, OrderStatus.CONFIRMED, LocalDateTime.now()));
+                .willReturn(new OrderResponse(1L, 1L, OrderStatus.CONFIRMED, LocalDateTime.now(),
+                        List.of(new OrderItemResponse(1001L, 2))));
 
         mockMvc.perform(get("/api/v1/orders/1"))
                 .andExpect(status().isOk())
