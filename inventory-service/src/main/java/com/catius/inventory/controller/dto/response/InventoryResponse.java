@@ -3,7 +3,7 @@ package com.catius.inventory.controller.dto.response;
 import com.catius.inventory.domain.Inventory;
 
 public record InventoryResponse(
-        String productId,
+        Long productId,
         String productName,
         int quantity
 ) {

@@ -39,15 +39,15 @@ class OrderControllerTest {
     @DisplayName("주문 생성 - 201 Created")
     void createOrder_201() throws Exception {
         given(orderService.createOrder(any()))
-                .willReturn(List.of(new OrderResponse(1L, 1L, "PRODUCT-001", 2, OrderStatus.PENDING, LocalDateTime.now())));
+                .willReturn(List.of(new OrderResponse(1L, 1L, 1001L, 2, OrderStatus.PENDING, LocalDateTime.now())));
 
-        OrderRequest request = new OrderRequest(1L, List.of(new OrderItemRequest("PRODUCT-001", 2)));
+        OrderRequest request = new OrderRequest(1L, List.of(new OrderItemRequest(1001L, 2)));
 
         mockMvc.perform(post("/api/v1/orders")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$[0].productId").value("PRODUCT-001"))
+                .andExpect(jsonPath("$[0].productId").value(1001))
                 .andExpect(jsonPath("$[0].quantity").value(2))
                 .andExpect(jsonPath("$[0].status").value("PENDING"));
     }
@@ -56,7 +56,7 @@ class OrderControllerTest {
     @DisplayName("주문 조회 - 200 OK")
     void getOrder_200() throws Exception {
         given(orderService.findById(1L))
-                .willReturn(new OrderResponse(1L, 1L, "PRODUCT-001", 2, OrderStatus.CONFIRMED, LocalDateTime.now()));
+                .willReturn(new OrderResponse(1L, 1L, 1001L, 2, OrderStatus.CONFIRMED, LocalDateTime.now()));
 
         mockMvc.perform(get("/api/v1/orders/1"))
                 .andExpect(status().isOk())

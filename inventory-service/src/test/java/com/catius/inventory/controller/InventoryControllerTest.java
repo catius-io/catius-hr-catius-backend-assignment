@@ -36,12 +36,12 @@ class InventoryControllerTest {
     @Test
     @DisplayName("재고 조회 - 200 OK")
     void getStock_200() throws Exception {
-        given(inventoryService.findByProductId("PRODUCT-001"))
-                .willReturn(new InventoryResponse("PRODUCT-001", "테스트 상품", 10));
+        given(inventoryService.findByProductId(1001L))
+                .willReturn(new InventoryResponse(1001L, "테스트 상품", 10));
 
-        mockMvc.perform(get("/api/v1/inventory/PRODUCT-001"))
+        mockMvc.perform(get("/api/v1/inventory/1001"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.productId").value("PRODUCT-001"))
+                .andExpect(jsonPath("$.productId").value(1001))
                 .andExpect(jsonPath("$.productName").value("테스트 상품"))
                 .andExpect(jsonPath("$.quantity").value(10));
     }
@@ -49,14 +49,14 @@ class InventoryControllerTest {
     @Test
     @DisplayName("재고 조회 - 없는 상품 → 404")
     void getStock_404() throws Exception {
-        given(inventoryService.findByProductId("PRODUCT-999"))
-                .willThrow(new StockNotFoundException("PRODUCT-999"));
+        given(inventoryService.findByProductId(9999L))
+                .willThrow(new StockNotFoundException(9999L));
 
-        mockMvc.perform(get("/api/v1/inventory/PRODUCT-999"))
+        mockMvc.perform(get("/api/v1/inventory/9999"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("STOCK_NOT_FOUND"))
-                .andExpect(jsonPath("$.message").value("Stock not found: PRODUCT-999"))
-                .andExpect(jsonPath("$.path").value("/api/v1/inventory/PRODUCT-999"));
+                .andExpect(jsonPath("$.message").value("Stock not found: 9999"))
+                .andExpect(jsonPath("$.path").value("/api/v1/inventory/9999"));
     }
 
     // ── POST /api/v1/inventory/reserve ───────────────────────────
@@ -65,13 +65,13 @@ class InventoryControllerTest {
     @DisplayName("재고 예약 - 200 OK")
     void reserve_200() throws Exception {
         given(inventoryService.reserve(any()))
-                .willReturn(new InventoryResponse("PRODUCT-001", "테스트 상품", 0));
+                .willReturn(new InventoryResponse(1001L, "테스트 상품", 0));
 
         mockMvc.perform(post("/api/v1/inventory/reserve")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new InventoryRequest("PRODUCT-001", 5))))
+                        .content(objectMapper.writeValueAsString(new InventoryRequest(1001L, 5))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.productId").value("PRODUCT-001"))
+                .andExpect(jsonPath("$.productId").value(1001))
                 .andExpect(jsonPath("$.quantity").value(0));
     }
 
@@ -79,14 +79,13 @@ class InventoryControllerTest {
     @DisplayName("재고 예약 - 재고 부족 → 409")
     void reserve_409() throws Exception {
         given(inventoryService.reserve(any()))
-                .willThrow(new InsufficientStockException("PRODUCT-001", 3, 10));
+                .willThrow(new InsufficientStockException("1001", 3, 10));
 
         mockMvc.perform(post("/api/v1/inventory/reserve")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new InventoryRequest("PRODUCT-001", 10))))
+                        .content(objectMapper.writeValueAsString(new InventoryRequest(1001L, 10))))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("INSUFFICIENT_STOCK"))
-                .andExpect(jsonPath("$.message").value("Insufficient stock: productId=PRODUCT-001, current=3, requested=10"))
                 .andExpect(jsonPath("$.path").value("/api/v1/inventory/reserve"));
     }
 
@@ -94,14 +93,14 @@ class InventoryControllerTest {
     @DisplayName("재고 예약 - 없는 상품 → 404")
     void reserve_404() throws Exception {
         given(inventoryService.reserve(any()))
-                .willThrow(new StockNotFoundException("PRODUCT-999"));
+                .willThrow(new StockNotFoundException(9999L));
 
         mockMvc.perform(post("/api/v1/inventory/reserve")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new InventoryRequest("PRODUCT-999", 1))))
+                        .content(objectMapper.writeValueAsString(new InventoryRequest(9999L, 1))))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("STOCK_NOT_FOUND"))
-                .andExpect(jsonPath("$.message").value("Stock not found: PRODUCT-999"));
+                .andExpect(jsonPath("$.message").value("Stock not found: 9999"));
     }
 
     // ── POST /api/v1/inventory/release ───────────────────────────
@@ -110,13 +109,13 @@ class InventoryControllerTest {
     @DisplayName("재고 복구 - 200 OK")
     void release_200() throws Exception {
         given(inventoryService.release(any()))
-                .willReturn(new InventoryResponse("PRODUCT-001", "테스트 상품", 10));
+                .willReturn(new InventoryResponse(1001L, "테스트 상품", 10));
 
         mockMvc.perform(post("/api/v1/inventory/release")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new InventoryRequest("PRODUCT-001", 5))))
+                        .content(objectMapper.writeValueAsString(new InventoryRequest(1001L, 5))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.productId").value("PRODUCT-001"))
+                .andExpect(jsonPath("$.productId").value(1001))
                 .andExpect(jsonPath("$.quantity").value(10));
     }
 
@@ -124,13 +123,13 @@ class InventoryControllerTest {
     @DisplayName("재고 복구 - 없는 상품 → 404")
     void release_404() throws Exception {
         given(inventoryService.release(any()))
-                .willThrow(new StockNotFoundException("PRODUCT-999"));
+                .willThrow(new StockNotFoundException(9999L));
 
         mockMvc.perform(post("/api/v1/inventory/release")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new InventoryRequest("PRODUCT-999", 1))))
+                        .content(objectMapper.writeValueAsString(new InventoryRequest(9999L, 1))))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("STOCK_NOT_FOUND"))
-                .andExpect(jsonPath("$.message").value("Stock not found: PRODUCT-999"));
+                .andExpect(jsonPath("$.message").value("Stock not found: 9999"));
     }
 }

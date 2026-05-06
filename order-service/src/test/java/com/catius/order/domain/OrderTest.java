@@ -12,13 +12,13 @@ class OrderTest {
 
     @BeforeEach
     void setUp() {
-        order = Order.create(1L , "PRODUCT-001", 3);
+        order = Order.create(1L, 1001L, 3);
     }
 
     @Test
     @DisplayName("주문 생성 - 초기 상태는 PENDING")
     void create_초기상태_PENDING() {
-        assertThat(order.getProductId()).isEqualTo("PRODUCT-001");
+        assertThat(order.getProductId()).isEqualTo(1001L);
         assertThat(order.getQuantity()).isEqualTo(3);
         assertThat(order.getStatus()).isEqualTo(OrderStatus.PENDING);
     }

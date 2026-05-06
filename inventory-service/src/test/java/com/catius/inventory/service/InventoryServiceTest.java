@@ -27,7 +27,7 @@ class InventoryServiceTest {
     @InjectMocks
     private InventoryService inventoryService;
 
-    private Inventory createInventory(String productId, String productName, int quantity) {
+    private Inventory createInventory(Long productId, String productName, int quantity) {
         return Inventory.create(productId, productName, quantity);
     }
 
@@ -36,12 +36,12 @@ class InventoryServiceTest {
     @Test
     @DisplayName("재고 조회 - 성공")
     void findByProductId_성공() {
-        given(inventoryRepository.findByProductId("PRODUCT-001"))
-                .willReturn(Optional.of(createInventory("PRODUCT-001", "테스트 상품", 10)));
+        given(inventoryRepository.findByProductId(1001L))
+                .willReturn(Optional.of(createInventory(1001L, "테스트 상품", 10)));
 
-        InventoryResponse response = inventoryService.findByProductId("PRODUCT-001");
+        InventoryResponse response = inventoryService.findByProductId(1001L);
 
-        assertThat(response.productId()).isEqualTo("PRODUCT-001");
+        assertThat(response.productId()).isEqualTo(1001L);
         assertThat(response.productName()).isEqualTo("테스트 상품");
         assertThat(response.quantity()).isEqualTo(10);
     }
@@ -49,12 +49,12 @@ class InventoryServiceTest {
     @Test
     @DisplayName("재고 조회 - 없는 상품 → 404")
     void findByProductId_없는상품_404() {
-        given(inventoryRepository.findByProductId("PRODUCT-999"))
+        given(inventoryRepository.findByProductId(9999L))
                 .willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> inventoryService.findByProductId("PRODUCT-999"))
+        assertThatThrownBy(() -> inventoryService.findByProductId(9999L))
                 .isInstanceOf(StockNotFoundException.class)
-                .hasMessage("Stock not found: PRODUCT-999");
+                .hasMessage("Stock not found: 9999");
     }
 
     // ── 재고 예약(차감) ───────────────────────────────────────────
@@ -62,22 +62,22 @@ class InventoryServiceTest {
     @Test
     @DisplayName("재고 예약 - 성공")
     void reserve_성공() {
-        given(inventoryRepository.findByProductId("PRODUCT-001"))
-                .willReturn(Optional.of(createInventory("PRODUCT-001", "테스트 상품", 10)));
+        given(inventoryRepository.findByProductId(1001L))
+                .willReturn(Optional.of(createInventory(1001L, "테스트 상품", 10)));
 
-        InventoryResponse response = inventoryService.reserve(new InventoryRequest("PRODUCT-001", 5));
+        InventoryResponse response = inventoryService.reserve(new InventoryRequest(1001L, 5));
 
-        assertThat(response.productId()).isEqualTo("PRODUCT-001");
+        assertThat(response.productId()).isEqualTo(1001L);
         assertThat(response.quantity()).isEqualTo(5); // 10 - 5 = 5
     }
 
     @Test
     @DisplayName("재고 예약 - 재고 부족 → 예외")
     void reserve_재고부족_예외() {
-        given(inventoryRepository.findByProductId("PRODUCT-001"))
-                .willReturn(Optional.of(createInventory("PRODUCT-001", "테스트 상품", 3)));
+        given(inventoryRepository.findByProductId(1001L))
+                .willReturn(Optional.of(createInventory(1001L, "테스트 상품", 3)));
 
-        assertThatThrownBy(() -> inventoryService.reserve(new InventoryRequest("PRODUCT-001", 5)))
+        assertThatThrownBy(() -> inventoryService.reserve(new InventoryRequest(1001L, 5)))
                 .isInstanceOf(InsufficientStockException.class)
                 .hasMessageContaining("Insufficient stock");
     }
@@ -85,12 +85,12 @@ class InventoryServiceTest {
     @Test
     @DisplayName("재고 예약 - 없는 상품 → 404")
     void reserve_없는상품_404() {
-        given(inventoryRepository.findByProductId("PRODUCT-999"))
+        given(inventoryRepository.findByProductId(9999L))
                 .willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> inventoryService.reserve(new InventoryRequest("PRODUCT-999", 1)))
+        assertThatThrownBy(() -> inventoryService.reserve(new InventoryRequest(9999L, 1)))
                 .isInstanceOf(StockNotFoundException.class)
-                .hasMessage("Stock not found: PRODUCT-999");
+                .hasMessage("Stock not found: 9999");
     }
 
     // ── 재고 복구 ────────────────────────────────────────────────
@@ -98,23 +98,23 @@ class InventoryServiceTest {
     @Test
     @DisplayName("재고 복구 - 성공")
     void release_성공() {
-        given(inventoryRepository.findByProductId("PRODUCT-001"))
-                .willReturn(Optional.of(createInventory("PRODUCT-001", "테스트 상품", 5)));
+        given(inventoryRepository.findByProductId(1001L))
+                .willReturn(Optional.of(createInventory(1001L, "테스트 상품", 5)));
 
-        InventoryResponse response = inventoryService.release(new InventoryRequest("PRODUCT-001", 3));
+        InventoryResponse response = inventoryService.release(new InventoryRequest(1001L, 3));
 
-        assertThat(response.productId()).isEqualTo("PRODUCT-001");
+        assertThat(response.productId()).isEqualTo(1001L);
         assertThat(response.quantity()).isEqualTo(8); // 5 + 3 = 8
     }
 
     @Test
     @DisplayName("재고 복구 - 없는 상품 → 404")
     void release_없는상품_404() {
-        given(inventoryRepository.findByProductId("PRODUCT-999"))
+        given(inventoryRepository.findByProductId(9999L))
                 .willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> inventoryService.release(new InventoryRequest("PRODUCT-999", 1)))
+        assertThatThrownBy(() -> inventoryService.release(new InventoryRequest(9999L, 1)))
                 .isInstanceOf(StockNotFoundException.class)
-                .hasMessage("Stock not found: PRODUCT-999");
+                .hasMessage("Stock not found: 9999");
     }
 }

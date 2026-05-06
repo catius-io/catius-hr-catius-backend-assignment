@@ -19,7 +19,7 @@ public class Inventory {
     private Long id;
 
     @Column(nullable = false, unique = true)
-    private String productId;
+    private Long productId;
 
     @Column(nullable = false)
     private String productName;
@@ -33,7 +33,7 @@ public class Inventory {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
-    public static Inventory create(String productId, String productName, int quantity) {
+    public static Inventory create(Long productId, String productName, int quantity) {
         Inventory inventory = new Inventory();
         inventory.productId = productId;
         inventory.productName = productName;
@@ -45,7 +45,7 @@ public class Inventory {
 
     public void deduct(int quantity) {
         if (this.quantity < quantity) {
-            throw new InsufficientStockException(productId, this.quantity, quantity);
+            throw new InsufficientStockException(productId.toString(), this.quantity, quantity);
         }
         this.quantity -= quantity;
         this.updatedAt = LocalDateTime.now();

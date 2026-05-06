@@ -17,7 +17,7 @@ class InventoryTest {
     @BeforeEach
     void setUp() {
         inventory = new Inventory();
-        ReflectionTestUtils.setField(inventory, "productId", "PRODUCT-001");
+        ReflectionTestUtils.setField(inventory, "productId", 1001L);
         ReflectionTestUtils.setField(inventory, "productName", "테스트 상품");
         ReflectionTestUtils.setField(inventory, "quantity", 10);
         ReflectionTestUtils.setField(inventory, "createdAt", LocalDateTime.now());
@@ -43,7 +43,7 @@ class InventoryTest {
     void deduct_재고부족_예외() {
         assertThatThrownBy(() -> inventory.deduct(11))
                 .isInstanceOf(InsufficientStockException.class)
-                .hasMessageContaining("Insufficient stock");
+                .hasMessageContaining("Insufficient stock: productId=1001");
     }
 
     @Test

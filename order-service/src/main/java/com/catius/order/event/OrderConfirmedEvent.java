@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 public class OrderConfirmedEvent {
 
     private Long orderId;
-    private String productId;
+    private Long productId;
     private int quantity;
     private String status;
     private Long timestamp;

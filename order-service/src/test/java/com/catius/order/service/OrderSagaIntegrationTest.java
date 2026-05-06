@@ -62,9 +62,9 @@ class OrderSagaIntegrationTest {
     @DisplayName("Saga 통합 테스트 - 재고 차감 성공 시 주문 확정 이벤트를 Kafka로 발행")
     void execute_성공_주문확정_Kafka이벤트발행() {
         given(inventoryClientFacade.reserve(any(InventoryRequest.class)))
-                .willReturn(new InventoryResponse("PRODUCT-001", "테스트 상품", 8));
+                .willReturn(new InventoryResponse(1001L, "테스트 상품", 8));
 
-        Order order = orderRepository.save(Order.create(1L, "PRODUCT-001", 2));
+        Order order = orderRepository.save(Order.create(1L, 1001L, 2));
 
         try (Consumer<String, OrderConfirmedEvent> consumer = createConsumer()) {
             embeddedKafkaBroker.consumeFromAnEmbeddedTopic(consumer, TOPIC);
@@ -80,12 +80,12 @@ class OrderSagaIntegrationTest {
             assertThat(savedOrder.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
             assertThat(record.key()).isEqualTo(order.getId().toString());
             assertThat(event.getOrderId()).isEqualTo(order.getId());
-            assertThat(event.getProductId()).isEqualTo("PRODUCT-001");
+            assertThat(event.getProductId()).isEqualTo(1001L);
             assertThat(event.getQuantity()).isEqualTo(2);
             assertThat(event.getStatus()).isEqualTo(OrderStatus.CONFIRMED.name());
             assertThat(event.getTimestamp()).isNotNull();
 
-            then(inventoryClientFacade).should().reserve(new InventoryRequest("PRODUCT-001", 2));
+            then(inventoryClientFacade).should().reserve(new InventoryRequest(1001L, 2));
         }
     }
 

@@ -5,6 +5,7 @@ import com.catius.order.client.dto.request.InventoryRequest;
 import com.catius.order.client.dto.response.InventoryResponse;
 import com.catius.order.domain.Order;
 import com.catius.order.domain.OrderStatus;
+import com.catius.order.exception.KafkaPublishException;
 import com.catius.order.repository.OrderRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -39,7 +40,7 @@ class OrderSagaOrchestratorTest {
 
     @BeforeEach
     void setUp() {
-        order = Order.create(1L, "PRODUCT-001", 2);
+        order = Order.create(1L, 1001L, 2);
     }
 
     // ── 정상 흐름 ─────────────────────────────────────────────────
@@ -48,7 +49,7 @@ class OrderSagaOrchestratorTest {
     @DisplayName("정상 흐름 - 재고 차감 성공 시 주문 확정 및 이벤트 발행")
     void execute_성공_주문확정_이벤트발행() {
         given(inventoryClientFacade.reserve(any(InventoryRequest.class)))
-                .willReturn(new InventoryResponse("PRODUCT-001", "테스트 상품", 8));
+                .willReturn(new InventoryResponse(1001L, "테스트 상품", 8));
         willDoNothing().given(orderEventPublisher).publishOrderConfirmed(any());
 
         orchestrator.execute(order);
@@ -56,6 +57,22 @@ class OrderSagaOrchestratorTest {
         assertThat(order.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
         then(inventoryClientFacade).should().reserve(any());
         then(orderEventPublisher).should().publishOrderConfirmed(any());
+        then(inventoryClientFacade).should(never()).release(any());
+    }
+
+    // ── Kafka 발행 실패 (KafkaPublishException) ───────────────────
+
+    @Test
+    @DisplayName("Kafka 발행 실패 - 주문은 CONFIRMED 유지, 보상 없음")
+    void execute_Kafka발행_실패_CONFIRMED_유지() {
+        given(inventoryClientFacade.reserve(any(InventoryRequest.class)))
+                .willReturn(new InventoryResponse(1001L, "테스트 상품", 8));
+        willThrow(new KafkaPublishException("Kafka 타임아웃", new RuntimeException()))
+                .given(orderEventPublisher).publishOrderConfirmed(any());
+
+        orchestrator.execute(order);
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
         then(inventoryClientFacade).should(never()).release(any());
     }
 
@@ -76,11 +93,11 @@ class OrderSagaOrchestratorTest {
     }
 
     @Test
-    @DisplayName("보상 트랜잭션 - 이벤트 발행 실패 시 주문 취소 및 재고 복구")
-    void execute_이벤트발행_실패_보상트랜잭션() {
+    @DisplayName("보상 트랜잭션 - 비즈니스 예외 시 주문 취소 및 재고 복구")
+    void execute_비즈니스예외_보상트랜잭션() {
         given(inventoryClientFacade.reserve(any(InventoryRequest.class)))
-                .willReturn(new InventoryResponse("PRODUCT-001", "테스트 상품", 8));
-        willThrow(new RuntimeException("Kafka 연결 실패"))
+                .willReturn(new InventoryResponse(1001L, "테스트 상품", 8));
+        willThrow(new RuntimeException("비즈니스 오류"))
                 .given(orderEventPublisher).publishOrderConfirmed(any());
 
         orchestrator.execute(order);
@@ -91,29 +108,28 @@ class OrderSagaOrchestratorTest {
     }
 
     @Test
-    @DisplayName("보상 트랜잭션 - 이벤트 발행 실패 시 release에 올바른 파라미터 전달")
+    @DisplayName("보상 트랜잭션 - release에 올바른 파라미터 전달")
     void execute_보상트랜잭션_release_파라미터_검증() {
         given(inventoryClientFacade.reserve(any(InventoryRequest.class)))
-                .willReturn(new InventoryResponse("PRODUCT-001", "테스트 상품", 8));
-        willThrow(new RuntimeException("Kafka 연결 실패"))
+                .willReturn(new InventoryResponse(1001L, "테스트 상품", 8));
+        willThrow(new RuntimeException("비즈니스 오류"))
                 .given(orderEventPublisher).publishOrderConfirmed(any());
 
         orchestrator.execute(order);
 
-        then(inventoryClientFacade).should().release(new InventoryRequest("PRODUCT-001", 2));
+        then(inventoryClientFacade).should().release(new InventoryRequest(1001L, 2));
     }
 
     @Test
     @DisplayName("보상 트랜잭션 - release 실패해도 예외가 전파되지 않음")
     void execute_release_실패_예외_전파_안됨() {
         given(inventoryClientFacade.reserve(any(InventoryRequest.class)))
-                .willReturn(new InventoryResponse("PRODUCT-001", "테스트 상품", 8));
-        willThrow(new RuntimeException("Kafka 연결 실패"))
+                .willReturn(new InventoryResponse(1001L, "테스트 상품", 8));
+        willThrow(new RuntimeException("비즈니스 오류"))
                 .given(orderEventPublisher).publishOrderConfirmed(any());
         willThrow(new RuntimeException("inventory-service 장애"))
                 .given(inventoryClientFacade).release(any());
 
-        // release 실패해도 예외가 밖으로 나오지 않아야 함
         orchestrator.execute(order);
 
         assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
@@ -123,8 +139,8 @@ class OrderSagaOrchestratorTest {
     @DisplayName("주문 취소 저장 실패 시 예외가 전파되고 재고 복구는 시도하지 않음")
     void execute_주문취소저장_실패_예외전파_release_미호출() {
         given(inventoryClientFacade.reserve(any(InventoryRequest.class)))
-                .willReturn(new InventoryResponse("PRODUCT-001", "테스트 상품", 8));
-        willThrow(new RuntimeException("Kafka 연결 실패"))
+                .willReturn(new InventoryResponse(1001L, "테스트 상품", 8));
+        willThrow(new RuntimeException("비즈니스 오류"))
                 .given(orderEventPublisher).publishOrderConfirmed(any());
         given(orderRepository.save(any(Order.class)))
                 .willReturn(order)

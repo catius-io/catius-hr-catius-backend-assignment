@@ -20,11 +20,11 @@ public class DataInitializer implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) {
         List<Inventory> seeds = List.of(
-                Inventory.create("PRODUCT-001", "상품 001", 100),
-                Inventory.create("PRODUCT-002", "상품 002", 100),
-                Inventory.create("PRODUCT-003", "상품 003", 100),
-                Inventory.create("PRODUCT-004", "상품 004", 100),
-                Inventory.create("PRODUCT-005", "상품 005", 100)
+                Inventory.create(1001L, "상품 001", 100),
+                Inventory.create(1002L, "상품 002", 100),
+                Inventory.create(1003L, "상품 003", 100),
+                Inventory.create(1004L, "상품 004", 100),
+                Inventory.create(1005L, "상품 005", 100)
         );
 
         for (Inventory seed : seeds) {

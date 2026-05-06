@@ -14,6 +14,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 import java.util.Optional;
@@ -21,7 +22,6 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.*;
-import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class OrderServiceTest {
@@ -45,12 +45,12 @@ class OrderServiceTest {
         });
         willDoNothing().given(orderSagaOrchestrator).execute(any(Order.class));
 
-        OrderRequest request = new OrderRequest(1L, List.of(new OrderItemRequest("PRODUCT-001", 2)));
+        OrderRequest request = new OrderRequest(1L, List.of(new OrderItemRequest(1001L, 2)));
         List<OrderResponse> responses = orderService.createOrder(request);
 
         assertThat(responses).hasSize(1);
         assertThat(responses.get(0).id()).isEqualTo(1L);
-        assertThat(responses.get(0).productId()).isEqualTo("PRODUCT-001");
+        assertThat(responses.get(0).productId()).isEqualTo(1001L);
         assertThat(responses.get(0).quantity()).isEqualTo(2);
         assertThat(responses.get(0).status()).isEqualTo(OrderStatus.PENDING);
         then(orderSagaOrchestrator).should().execute(any(Order.class));
@@ -59,12 +59,12 @@ class OrderServiceTest {
     @Test
     @DisplayName("주문 조회 - 성공")
     void findById_성공() {
-        Order order = Order.create(1L, "PRODUCT-001", 2);
+        Order order = Order.create(1L, 1001L, 2);
         given(orderRepository.findById(1L)).willReturn(Optional.of(order));
 
         OrderResponse response = orderService.findById(1L);
 
-        assertThat(response.productId()).isEqualTo("PRODUCT-001");
+        assertThat(response.productId()).isEqualTo(1001L);
         assertThat(response.status()).isEqualTo(OrderStatus.PENDING);
     }
 

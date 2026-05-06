@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 public record OrderResponse(
         Long id,
         Long customerId,
-        String productId,
+        Long productId,
         int quantity,
         OrderStatus status,
         LocalDateTime createdAt

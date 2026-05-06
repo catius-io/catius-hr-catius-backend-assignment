@@ -17,7 +17,7 @@ public class InventoryService {
     private final InventoryRepository inventoryRepository;
 
     @Transactional(readOnly = true)
-    public InventoryResponse findByProductId(String productId) {
+    public InventoryResponse findByProductId(Long productId) {
         return inventoryRepository.findByProductId(productId)
                 .map(InventoryResponse::from)
                 .orElseThrow(() -> new StockNotFoundException(productId));
