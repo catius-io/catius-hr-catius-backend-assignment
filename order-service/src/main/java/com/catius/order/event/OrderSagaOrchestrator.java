@@ -3,6 +3,7 @@ package com.catius.order.event;
 import com.catius.order.client.InventoryClientFacade;
 import com.catius.order.client.dto.request.InventoryRequest;
 import com.catius.order.domain.Order;
+import com.catius.order.exception.KafkaPublishException;
 import com.catius.order.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,6 +40,10 @@ public class OrderSagaOrchestrator {
                     System.currentTimeMillis()
             ));
             log.info("[주문 이벤트 성공] orderId={}", order.getId());
+
+        } catch (KafkaPublishException e) {
+            log.error("[Kafka 발행 실패] orderId={} — 주문은 CONFIRMED 유지, 수동 재처리 필요, cause={}",
+                    order.getId(), e.getMessage());
 
         } catch (Exception e) {
             log.warn("[주문 실패] orderId={} cause={}", order.getId(), e.getMessage());

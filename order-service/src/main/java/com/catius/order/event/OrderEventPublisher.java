@@ -1,5 +1,6 @@
 package com.catius.order.event;
 
+import com.catius.order.exception.KafkaPublishException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -28,13 +29,13 @@ public class OrderEventPublisher {
                     event.getOrderId(), result.getRecordMetadata().offset());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new RuntimeException("[Kafka] 발행 인터럽트 orderId=" + event.getOrderId(), e);
+            throw new KafkaPublishException("[Kafka] 발행 인터럽트 orderId=" + event.getOrderId(), e);
         } catch (ExecutionException e) {
             log.error("[Kafka] 발행 실패 orderId={}", event.getOrderId(), e.getCause());
-            throw new RuntimeException("[Kafka] 발행 실패 orderId=" + event.getOrderId(), e.getCause());
+            throw new KafkaPublishException("[Kafka] 발행 실패 orderId=" + event.getOrderId(), e.getCause());
         } catch (TimeoutException e) {
             log.error("[Kafka] 발행 타임아웃 orderId={}", event.getOrderId());
-            throw new RuntimeException("[Kafka] 발행 타임아웃 orderId=" + event.getOrderId(), e);
+            throw new KafkaPublishException("[Kafka] 발행 타임아웃 orderId=" + event.getOrderId(), e);
         }
     }
 }
