@@ -41,6 +41,10 @@ spring:
       acks: all
       properties:
         enable.idempotence: true
+        # broker 다운 시 metadata fetch 단계의 블록을 짧게 — KafkaTemplate.send().get(5s) 타임아웃이
+        # 효과를 가지려면 send() 자체의 max.block.ms < .get() 타임아웃이어야 한다.
+        # 기본값 60s 면 broker 다운 시 사용자 응답이 60s 지연됨 (ADR-007 publish 실패 분기).
+        max.block.ms: 2000
     listener:
       # 로컬 전체 기동 시 외부 Kafka 가 없다면 `false` 로 두고, 테스트에서만 Embedded Kafka 로 검증하는 것도 한 방법입니다.
       auto-startup: true

@@ -130,6 +130,7 @@ forward 알고리즘(ADR-003)의 각 분기마다 **order-service의 별도 loca
 - **한계 (의도적으로 수용한 트레이드오프)**:
   - **첫 IN_PROGRESS INSERT 실패 윈도우**: 이 시점에는 reserve 호출이 시작되지 않아 재고 차감이 없으므로 재고 leak invariant 유지. 다만 사용자 응답이 5xx로 끊기는 점은 보장 안 됨.
   - **Fan-out 이벤트(`order.order-confirmed.v1`)는 mitigation 없음**: 본 과제 컨슈머 부재라 회귀 표면 0. 발행 실패 시 사용자 응답은 201 그대로 (위 정책 절). 운영 환경에서 컨슈머가 추가되면 비용 분석 후 outbox 도입 필요.
+  - **broker 다운 시 publishConfirmed 응답 latency**: 동기 ack 의도(`KafkaTemplate.send().get(5s)`)는 metadata fetch 단계의 `producer.max.block.ms`와 별도. 기본값 60s를 2s로 단축해 사용자 응답이 broker 가용성에 직격되지 않도록 보호하되, 근본적인 비동기화(`whenComplete` 콜백 + confirmed 이벤트 outbox 확장)는 후속 영역으로 분리.
   - **pending_compensations row 누적**: COMPLETED·PUBLISHED row의 cleanup 정책은 본 과제 범위 외(운영 시 cron 또는 retention 컬럼). 테스트 후 truncate 정도만 고려.
   - **catastrophic Kafka 실패**: KafkaTemplate retries 한도 초과 시 `DISPATCH_FAILED` 영속화로 재기동 후 재시도 가능하지만, 같은 catastrophic 실패가 지속되면 운영자 개입 필요. 본 mitigation의 boundary.
   - **운영 환경 전환 시 재작성 트리거**:
