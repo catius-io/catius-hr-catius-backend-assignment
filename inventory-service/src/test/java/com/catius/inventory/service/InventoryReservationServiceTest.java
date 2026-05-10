@@ -7,6 +7,7 @@ import com.catius.inventory.repository.InventoryRepository;
 import com.catius.inventory.repository.ReservationRepository;
 import com.catius.inventory.service.exception.AlreadyCompensatedException;
 import com.catius.inventory.service.exception.InsufficientStockException;
+import com.catius.inventory.service.exception.ProductNotFoundException;
 import com.catius.inventory.service.exception.ReservationConflictException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -94,8 +95,10 @@ class InventoryReservationServiceTest {
     }
 
     @Test
-    void reserve_throwsInsufficientStock_whenProductNotFound() {
-        assertThrows(InsufficientStockException.class,
+    void reserve_throwsProductNotFound_whenProductMissing() {
+        // affected=0의 두 케이스를 분리: 상품 미존재는 ProductNotFoundException으로 명확히 구분.
+        // ErrorDecoder의 PRODUCT_NOT_FOUND 매핑이 reserve 경로에서도 실효를 갖게 됨.
+        assertThrows(ProductNotFoundException.class,
                 () -> service.reserve("order-1", 9999L, 1));
 
         assertEquals(0, reservationRepository.count());

@@ -71,6 +71,12 @@ public class InventoryReservationService {
 
         int affected = inventoryRepository.decrementIfSufficient(productId, quantity);
         if (affected == 0) {
+            // affected=0은 두 케이스의 합집합 — 상품 미존재 / 재고 부족.
+            // 클라이언트가 두 시나리오를 코드로 분기할 수 있도록 sad path 한정 추가 조회로 분리.
+            // ErrorDecoder의 PRODUCT_NOT_FOUND 매핑이 reserve 경로에서도 실효를 갖게 됨.
+            if (inventoryRepository.findById(productId).isEmpty()) {
+                throw new ProductNotFoundException(productId);
+            }
             throw new InsufficientStockException(productId, quantity);
         }
 
