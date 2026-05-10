@@ -206,6 +206,15 @@ curl -i -X POST http://localhost:8082/api/v1/inventory/reserve \
 
 ---
 
+## 실행 보강
+
+원본 스캐폴드의 호출 예시(`### 호출 예시` — productId 1001 사용)가 클린 클론 + `bootRun` 직후 즉시 동작하도록 기본 시드를 추가했습니다.
+
+- **기본 프로파일**: `inventory-service/src/main/resources/data.sql`로 productId **1001~1003** quantity 1000 시드. 재기동 시 `INSERT OR IGNORE`로 중복 INSERT 회피.
+- **perf 프로파일** (`--spring.profiles.active=perf`): `application-perf.yml`이 `data-locations`를 `data-perf.sql`로 오버라이드 → productId 1001~1100 quantity 1,000,000으로 부하 시나리오용 시드 로드. 기본 시드와 충돌 없음.
+
+---
+
 ## 설계 결정
 
 > 본 구현의 설계 결정과 트레이드오프는 [`docs/decisions/`](docs/decisions/) 디렉터리에 ADR(Architecture Decision Record) 형태로 8건 기록되어 있다. HTTP API 계약은 [`docs/api/`](docs/api/), k6 실측 결과는 [`perf/results.md`](perf/results.md)에 분리되어 있다. 아래는 핵심 흐름·인덱스·트레이드오프 요약.
